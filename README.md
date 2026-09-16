@@ -10,7 +10,9 @@ Su Windows 10/11 esegui `INSTALL.bat`, poi avvia `RUN.vbs` (o il collegamento Ga
 
 1. Incolla uno o più link nel campo in alto: sono accettati anche link Markdown copiati da una chat.
 2. **Salva in** è la base portabile `Downloads\gallery-dl`; un percorso relativo parte dalla cartella utente. **Cartella** viene proposta dal dominio e dal percorso del primo link e resta modificabile.
-3. Premi **Scarica**. **Apri cartella** mostra il risultato; **Annulla** interrompe il lavoro senza rimuovere i file completati.
+3. Scegli **Immagini**, **Video** o entrambe. Per impostazione predefinita è selezionato soltanto **Immagini**.
+4. Scegli se organizzare i file nelle sottocartelle `Immagini` e `Video` oppure salvarli tutti insieme. Le due sottocartelle separate sono l’impostazione predefinita.
+5. Premi **Scarica**. **Apri cartella** mostra il risultato; **Annulla** interrompe il lavoro senza rimuovere i file completati.
 
 **Aggiorna** aggiorna gallery-dl e yt-dlp. Dopo un aggiornamento del progetto, esegui nuovamente `INSTALL.bat` per allineare tutte le dipendenze. L’installer rimuove anche l’eventuale vecchia cartella `.browser-binaries`, che non serve più.
 
@@ -18,8 +20,8 @@ La finestra avviata da `RUN.vbs` e il collegamento sul Desktop usano l’[icona 
 
 ## Come funziona
 
-- Gallerie, post e profili riconosciuti: estrattori dedicati di [gallery-dl](https://github.com/mikf/gallery-dl). È richiesta almeno la versione [1.32.12](https://github.com/mikf/gallery-dl/releases/tag/v1.32.12), che corregge gli estrattori Instagram `posts` e `reels` rotti nella 1.32.11. Non è più necessario leggere la griglia e ripetere ogni post singolarmente.
-- Pagine web comuni, come una homepage o un articolo: lettura delle immagini HTML, lazy-loading, srcset, metadati e immagini strutturate. Viene scelta la variante responsive più grande dichiarata. Se l’HTML non contiene immagini, viene tentata la pagina renderizzata con il browser Chromium già installato.
+- Gallerie, post e profili riconosciuti: estrattori dedicati di [gallery-dl](https://github.com/mikf/gallery-dl). È richiesta almeno la versione [1.32.12](https://github.com/mikf/gallery-dl/releases/tag/v1.32.12), che corregge gli estrattori Instagram `posts` e `reels` rotti nella 1.32.11. Immagini e video vengono filtrati durante una sola estrazione e, se richiesto, classificati nelle rispettive sottocartelle senza ripetere le richieste al sito.
+- Pagine web comuni, come una homepage o un articolo: per le immagini vengono letti HTML, lazy-loading, srcset, metadati e immagini strutturate; se necessario viene usato il browser Chromium già installato. Quando è selezionato **Video**, gli URL non riconosciuti da gallery-dl vengono passati a yt-dlp.
 - Le immagini delle pagine normali vengono verificate prima del salvataggio; i piccoli elementi inferiori a 64 pixel per lato sono ignorati. I duplicati identici nella stessa pagina vengono saltati. Un link diretto conserva anche le immagini piccole.
 - Ogni operazione usa la sottocartella mostrata nel campo **Cartella**: per esempio `www.repubblica.it`, `www.repubblica.it-sport` o `www.instagram.com-raffaele.pet`. Incollando più link viene usato il nome ricavato dal primo.
 - Ripetere lo stesso download riutilizza la cartella: le pagine comuni deduplicano in base al contenuto e gallery-dl salta i file già presenti. Non viene aggiunto un orario, perché produrrebbe copie identiche a ogni esecuzione.
@@ -40,6 +42,6 @@ Questo non elimina le restrizioni imposte da Instagram: login, verifica dell’a
 .\.venv\Scripts\python.exe -m unittest discover -s tests -v
 ```
 
-I test coprono il link Markdown di Repubblica, estrazione HTML, download HTTP reale locale, immagini non valide, duplicati, risultati parziali, messaggi del processo, sessioni Instagram e rendering JavaScript. Chrome, Edge o Brave deve essere installato nel sistema.
+I test coprono il link Markdown di Repubblica, estrazione HTML, download HTTP reale locale, filtri immagini/video, sottocartelle, yt-dlp, file già presenti, risultati parziali, sessioni Instagram e rendering JavaScript. Chrome, Edge o Brave deve essere installato nel sistema.
 
 Interfaccia non ufficiale, licenza MIT. Il logo originale e la palette sono quelli richiesti per il progetto; gallery-dl rimane un progetto indipendente. Scarica solo contenuti che sei autorizzato a salvare e rispetta le condizioni dei siti.

@@ -32,13 +32,14 @@ class App(tk.Tk):
         except tk.TclError:
             self.app_icon = None
         self.configure(bg=BG)
-        self.geometry('800x690')
-        self.minsize(650, 560)
+        self.geometry('800x780')
+        self.minsize(720, 650)
         self.events = queue.Queue()
         self.process = None
         self.busy = self.cancelled = False
         self.saved = self.existing = 0
         destination = str(Path('Downloads') / 'gallery-dl')
+        prefs = {}
         try:
             prefs = json.loads(STATE_FILE.read_text(encoding='utf-8'))
             destination = prefs.get('destination') or destination
@@ -48,6 +49,9 @@ class App(tk.Tk):
         except (OSError, ValueError):
             pass
         self.destination = tk.StringVar(value=destination)
+        self.download_images = tk.BooleanVar(value=prefs.get('images', True) is not False)
+        self.download_videos = tk.BooleanVar(value=bool(prefs.get('videos', False)))
+        self.separate_media = tk.BooleanVar(value=prefs.get('separate_media', True) is not False)
         self.collection = tk.StringVar()
         self._automatic_collection = ''
         self._setting_collection = False
@@ -78,6 +82,25 @@ class App(tk.Tk):
         self.folder_entry.pack(side='left', fill='x', expand=True, ipady=9)
         self.browse = self.button(folder, 'Sfoglia…', self.choose_folder)
         self.browse.pack(side='left', padx=(8, 0))
+
+        media_options = tk.Frame(body, bg=BG)
+        media_options.pack(fill='x', pady=(12, 0))
+        self.label(media_options, 'Scarica', 10, MUTED).pack(side='left', padx=(0, 8))
+        self.images_check = self.checkbutton(media_options, 'Immagini', self.download_images)
+        self.images_check.pack(side='left')
+        self.videos_check = self.checkbutton(media_options, 'Video', self.download_videos)
+        self.videos_check.pack(side='left', padx=(8, 0))
+
+        storage_options = tk.Frame(body, bg=BG)
+        storage_options.pack(fill='x', pady=(4, 0))
+        self.label(storage_options, 'Organizza', 10, MUTED).pack(side='left', padx=(0, 8))
+        self.separate_radio = self.radiobutton(
+            storage_options, 'in Immagini / Video', self.separate_media, True)
+        self.separate_radio.pack(side='left')
+        self.together_radio = self.radiobutton(
+            storage_options, 'tutto insieme', self.separate_media, False)
+        self.together_radio.pack(side='left', padx=(8, 0))
+
         self.label(body, 'Cartella', 11).pack(anchor='w', pady=(14, 6))
         self.collection_entry = tk.Entry(body, textvariable=self.collection, bg=PANEL, fg=TEXT,
                                          insertbackground=GREEN, relief='flat', font=('Segoe UI', 10))
@@ -116,6 +139,16 @@ class App(tk.Tk):
         return tk.Button(parent, text=text, command=command, bg=GREEN if primary else '#21136D',
                          fg=BG if primary else TEXT, activebackground='#6B3BD0', activeforeground=TEXT,
                          relief='flat', bd=0, padx=17, pady=9, cursor='hand2', font=('Segoe UI', 10, 'bold'))
+
+    def checkbutton(self, parent, text, variable):
+        return tk.Checkbutton(parent, text=text, variable=variable, bg=BG, fg=TEXT,
+                              activebackground=BG, activeforeground=TEXT, selectcolor='#21136D',
+                              bd=0, highlightthickness=0, font=('Segoe UI', 10))
+
+    def radiobutton(self, parent, text, variable, value):
+        return tk.Radiobutton(parent, text=text, variable=variable, value=value, bg=BG, fg=TEXT,
+                              activebackground=BG, activeforeground=TEXT, selectcolor='#21136D',
+                              bd=0, highlightthickness=0, font=('Segoe UI', 10))
 
     def choose_folder(self):
         folder = filedialog.askdirectory(initialdir=self.resolve_destination())
@@ -171,7 +204,9 @@ class App(tk.Tk):
 
     def set_busy(self, value):
         self.busy = value
-        for control in (self.download, self.update_button, self.browse, self.folder_entry, self.collection_entry, self.urls):
+        for control in (self.download, self.update_button, self.browse, self.folder_entry,
+                        self.collection_entry, self.urls, self.images_check, self.videos_check,
+                        self.separate_radio, self.together_radio):
             control.configure(state='disabled' if value else 'normal')
         self.stop.configure(state='normal' if value else 'disabled')
         self.progress.start(12) if value else self.progress.stop()
@@ -183,13 +218,20 @@ class App(tk.Tk):
             urls = normalize_urls(self.urls.get('1.0', 'end'))
             if not self.destination.get().strip():
                 raise ValueError('Scegli una cartella di destinazione.')
+            if not self.download_images.get() and not self.download_videos.get():
+                raise ValueError('Seleziona almeno Immagini oppure Video.')
             destination = self.target_folder()
             destination.mkdir(parents=True, exist_ok=True)
         except (ValueError, OSError) as exc:
             messagebox.showerror('Controlla il link o la cartella', str(exc))
             return
         try:
-            STATE_FILE.write_text(json.dumps({'destination': self.destination.get().strip()}), encoding='utf-8')
+            STATE_FILE.write_text(json.dumps({
+                'destination': self.destination.get().strip(),
+                'images': self.download_images.get(),
+                'videos': self.download_videos.get(),
+                'separate_media': self.separate_media.get(),
+            }), encoding='utf-8')
         except OSError:
             pass
         self.saved = self.existing = 0
@@ -198,9 +240,19 @@ class App(tk.Tk):
         self.log.delete('1.0', 'end')
         self.log.configure(state='disabled')
         self.append('Destinazione: ' + str(destination))
+        selected = 'Immagini e video' if self.download_images.get() and self.download_videos.get() \
+            else 'Immagini' if self.download_images.get() else 'Video'
+        organization = 'sottocartelle separate' if self.separate_media.get() else 'tutto insieme'
+        self.append(f'Contenuti: {selected} · {organization}')
         self.set_busy(True)
-        self.status.set('Cerco le immagini…')
-        self.launch([str(APP_DIR / 'engine.py')], {'urls': urls, 'destination': str(destination)})
+        self.status.set('Cerco i contenuti…')
+        self.launch([str(APP_DIR / 'engine.py')], {
+            'urls': urls,
+            'destination': str(destination),
+            'images': self.download_images.get(),
+            'videos': self.download_videos.get(),
+            'separate_media': self.separate_media.get(),
+        })
 
     def launch(self, args, payload=None):
         # Spawn before enabling event processing: Cancel cannot race creation.

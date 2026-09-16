@@ -24,7 +24,9 @@ class Handler(BaseHTTPRequestHandler):
         pass
 
     def do_GET(self):
-        if self.path.startswith('/image'):
+        if self.path == '/video.mp4':
+            data, kind, code = b'\x00\x00\x00\x18ftypmp42' + (b'\x00' * 512), 'video/mp4', 200
+        elif self.path.startswith('/image'):
             data, kind, code = png(), 'image/png', 200
         elif self.path == '/invalid':
             data, kind, code = b'not an image', 'image/jpeg', 200
@@ -138,7 +140,9 @@ class Tests(unittest.TestCase):
                 patch('engine.gallery_download', return_value=(3, 0, [])) as download:
             self.assertEqual(engine.run({'urls': [url], 'destination': tmp}), 0)
             self.assertEqual(browser.call_args_list, [call(url), call(url, interactive=True)])
-            download.assert_called_once_with(url, Path(tmp), login_cookie)
+            download.assert_called_once_with(
+                url, Path(tmp), login_cookie, images=True, videos=False,
+                separate_media=True)
 
     def test_instagram_profile_reuses_system_browser_session(self):
         url = 'https://www.instagram.com/example/'
@@ -150,7 +154,9 @@ class Tests(unittest.TestCase):
                 patch('engine.gallery_download', return_value=(1, 0, [])) as download:
             self.assertEqual(engine.run({'urls': [url], 'destination': tmp}), 0)
             browser.assert_not_called()
-            download.assert_called_once_with(url, Path(tmp), login_cookie, publish_logs=False)
+            download.assert_called_once_with(
+                url, Path(tmp), login_cookie, publish_logs=False, images=True,
+                videos=False, separate_media=True)
 
     def test_worker_protocol(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -160,6 +166,8 @@ class Tests(unittest.TestCase):
             events = [json.loads(line) for line in result.stdout.splitlines()]
             self.assertEqual(events[-1]['type'], 'done')
             self.assertTrue(any(e['type'] == 'file' for e in events))
+            self.assertTrue((Path(tmp) / 'Immagini').is_dir())
+            self.assertTrue((Path(tmp) / 'Video').is_dir())
 
     def test_gallery_markers(self):
         with tempfile.TemporaryDirectory() as tmp, contextlib.redirect_stdout(io.StringIO()) as output:
@@ -169,6 +177,44 @@ class Tests(unittest.TestCase):
             count, code, _ = engine.gallery_download(self.base + '/image.png', Path(tmp))
             self.assertEqual((count, code), (1, 0), output.getvalue())
             self.assertIn('"existing": true', output.getvalue())
+
+    def test_gallery_media_filter_and_separate_folder(self):
+        with tempfile.TemporaryDirectory() as tmp, contextlib.redirect_stdout(io.StringIO()):
+            root = Path(tmp)
+            count, code, _ = engine.gallery_download(
+                self.base + '/image.png', root, images=True, videos=False,
+                separate_media=True)
+            self.assertEqual((count, code), (1, 0))
+            self.assertEqual(len(list((root / 'Immagini').glob('*.png'))), 1)
+
+        with tempfile.TemporaryDirectory() as tmp, contextlib.redirect_stdout(io.StringIO()):
+            count, code, _ = engine.gallery_download(
+                self.base + '/image.png', Path(tmp), images=False, videos=True,
+                separate_media=True)
+            self.assertEqual((count, code), (0, 0))
+            self.assertFalse(any(Path(tmp).rglob('*.png')))
+
+        with tempfile.TemporaryDirectory() as tmp, contextlib.redirect_stdout(io.StringIO()):
+            root = Path(tmp)
+            count, code, _ = engine.gallery_download(
+                self.base + '/video.mp4', root, images=False, videos=True,
+                separate_media=True)
+            self.assertEqual((count, code), (1, 0))
+            self.assertEqual(len(list((root / 'Video').glob('*.mp4'))), 1)
+
+    def test_yt_dlp_video_download_and_duplicate(self):
+        with tempfile.TemporaryDirectory() as tmp, contextlib.redirect_stdout(io.StringIO()) as output:
+            root = Path(tmp)
+            self.assertEqual(engine.video_download(self.base + '/video.mp4', root)[:2], (1, 0))
+            self.assertEqual(engine.video_download(self.base + '/video.mp4', root)[:2], (1, 0))
+            self.assertEqual(len(list(root.glob('*.mp4'))), 1)
+            self.assertIn('"existing": true', output.getvalue())
+
+    def test_at_least_one_media_type_is_required(self):
+        with tempfile.TemporaryDirectory() as tmp, contextlib.redirect_stdout(io.StringIO()):
+            with self.assertRaisesRegex(ValueError, 'almeno Immagini oppure Video'):
+                engine.run({'urls': [self.base], 'destination': tmp,
+                            'images': False, 'videos': False})
 
 
 if __name__ == '__main__':
