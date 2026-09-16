@@ -91,6 +91,13 @@ class Tests(unittest.TestCase):
             with self.assertRaises(OSError):
                 engine.save_image(b'not image', self.base, root)
 
+    def test_application_icon_assets(self):
+        assets = Path(__file__).resolve().parents[1] / 'assets'
+        with Image.open(assets / 'gallery-dl-icon.png') as icon:
+            self.assertEqual(icon.size, (100, 100))
+        with Image.open(assets / 'gallery-dl-icon.ico') as icon:
+            self.assertEqual(icon.format, 'ICO')
+
     def test_generic_download_and_duplicate(self):
         with tempfile.TemporaryDirectory() as tmp, contextlib.redirect_stdout(io.StringIO()) as output:
             self.assertEqual(engine.generic_download(self.base, Path(tmp)), (1, 0))

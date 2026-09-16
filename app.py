@@ -15,6 +15,8 @@ from engine import folder_name_from_url, normalize_urls
 
 APP_DIR = Path(__file__).resolve().parent
 STATE_FILE = APP_DIR / '.gallery-dl-gui.json'
+ICON_PNG = APP_DIR / 'assets/gallery-dl-icon.png'
+ICON_ICO = APP_DIR / 'assets/gallery-dl-icon.ico'
 BG, PANEL, TEXT, MUTED, GREEN = '#110B38', '#1E1E1E', '#FFFFFF', '#99A2DB', '#B2F962'
 
 
@@ -22,6 +24,13 @@ class App(tk.Tk):
     def __init__(self):
         super().__init__()
         self.title('Gallery-DL')
+        try:
+            self.app_icon = tk.PhotoImage(file=str(ICON_PNG))
+            self.iconphoto(True, self.app_icon)
+            if sys.platform == 'win32':
+                self.iconbitmap(default=str(ICON_ICO))
+        except tk.TclError:
+            self.app_icon = None
         self.configure(bg=BG)
         self.geometry('800x690')
         self.minsize(650, 560)
@@ -263,7 +272,8 @@ class App(tk.Tk):
             self.cancelled = False
             self.set_busy(True)
             self.status.set('Aggiornamento del motore…')
-            self.launch(['-m', 'pip', 'install', '--upgrade', 'gallery-dl', 'yt-dlp'])
+            self.launch(['-m', 'pip', 'install', '--upgrade', '--upgrade-strategy',
+                         'eager', 'gallery-dl', 'yt-dlp'])
 
     def close(self):
         if self.busy and not messagebox.askyesno('Chiudere?', 'Annullare l’operazione e chiudere?'):

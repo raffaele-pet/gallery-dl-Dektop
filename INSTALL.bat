@@ -30,6 +30,14 @@ if not exist "%PROJECT_DIR%assets\gallery-dl-logo.png" (
     call :fatal "Manca il logo dell'applicazione."
     exit /b 1
 )
+if not exist "%PROJECT_DIR%assets\gallery-dl-icon.png" (
+    call :fatal "Manca l'icona PNG dell'applicazione."
+    exit /b 1
+)
+if not exist "%PROJECT_DIR%assets\gallery-dl-icon.ico" (
+    call :fatal "Manca l'icona Windows dell'applicazione."
+    exit /b 1
+)
 
 call :find_python
 call :find_ffmpeg
@@ -100,11 +108,23 @@ if errorlevel 1 (
 
 echo.
 echo [3/6] Installazione o aggiornamento di gallery-dl e integrazioni...
-"%VENV_PY%" -m pip install --upgrade -r "%PROJECT_DIR%requirements.txt"
+set "GDL_BEFORE=non installato"
+set "YTDLP_BEFORE=non installato"
+if exist "%VENV_GDL%" for /f "delims=" %%V in ('"%VENV_GDL%" --version 2^>nul') do set "GDL_BEFORE=%%V"
+if exist "%VENV_YTDLP%" for /f "delims=" %%V in ('"%VENV_YTDLP%" --version 2^>nul') do set "YTDLP_BEFORE=%%V"
+echo Versione gallery-dl presente: !GDL_BEFORE!
+echo Controllo le ultime release stabili disponibili e applico gli aggiornamenti...
+"%VENV_PY%" -m pip install --upgrade --upgrade-strategy eager -r "%PROJECT_DIR%requirements.txt"
 if errorlevel 1 (
     call :fatal "Installazione dei pacchetti Python non riuscita."
     exit /b 1
 )
+set "GDL_AFTER=non disponibile"
+set "YTDLP_AFTER=non disponibile"
+for /f "delims=" %%V in ('"%VENV_GDL%" --version 2^>nul') do set "GDL_AFTER=%%V"
+for /f "delims=" %%V in ('"%VENV_YTDLP%" --version 2^>nul') do set "YTDLP_AFTER=%%V"
+if "!GDL_BEFORE!"=="!GDL_AFTER!" (echo [OK] gallery-dl !GDL_AFTER! è già aggiornato.) else (echo [AGGIORNATO] gallery-dl !GDL_BEFORE! --^> !GDL_AFTER!)
+if "!YTDLP_BEFORE!"=="!YTDLP_AFTER!" (echo [OK] yt-dlp !YTDLP_AFTER! è già aggiornato.) else (echo [AGGIORNATO] yt-dlp !YTDLP_BEFORE! --^> !YTDLP_AFTER!)
 
 echo.
 echo Controllo del browser già installato...
@@ -163,7 +183,7 @@ echo.
 echo [6/6] Creazione del collegamento sul Desktop...
 set "GDL_PROJECT=%PROJECT_DIR%"
 powershell.exe -NoProfile -ExecutionPolicy Bypass -Command ^
-  "$project=$env:GDL_PROJECT.TrimEnd('\'); $desktop=[Environment]::GetFolderPath('Desktop'); $shortcut=(New-Object -ComObject WScript.Shell).CreateShortcut((Join-Path $desktop 'Gallery-DL.lnk')); $shortcut.TargetPath=(Join-Path $env:SystemRoot 'System32\wscript.exe'); $shortcut.Arguments='""'+(Join-Path $project 'RUN.vbs')+'""'; $shortcut.WorkingDirectory=$project; $shortcut.Description='Gallery-DL - Image and gallery downloader'; $shortcut.IconLocation=(Join-Path $env:SystemRoot 'System32\imageres.dll')+',67'; $shortcut.Save()"
+  "$project=$env:GDL_PROJECT.TrimEnd('\'); $desktop=[Environment]::GetFolderPath('Desktop'); $shortcut=(New-Object -ComObject WScript.Shell).CreateShortcut((Join-Path $desktop 'Gallery-DL.lnk')); $shortcut.TargetPath=(Join-Path $env:SystemRoot 'System32\wscript.exe'); $shortcut.Arguments='""'+(Join-Path $project 'RUN.vbs')+'""'; $shortcut.WorkingDirectory=$project; $shortcut.Description='Gallery-DL - Image and gallery downloader'; $shortcut.IconLocation=(Join-Path $project 'assets\gallery-dl-icon.ico')+',0'; $shortcut.Save()"
 if errorlevel 1 (
     echo [AVVISO] Non è stato possibile creare il collegamento. RUN.vbs rimane utilizzabile.
 ) else (

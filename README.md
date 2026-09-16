@@ -4,7 +4,7 @@ Incolla il link, scegli dove salvare e premi **Scarica**. Nessun menu di configu
 
 ## Installazione
 
-Su Windows 10/11 esegui `INSTALL.bat`, poi avvia `RUN.vbs` (o il collegamento Gallery-DL sul Desktop). L’installer prepara Python, gallery-dl, yt-dlp e FFmpeg in un ambiente isolato. Per le pagine dinamiche usa Google Chrome, Microsoft Edge o Brave già installato nel sistema: non scarica più una seconda copia di Chromium. `RUN_DEBUG.cmd` mostra eventuali problemi di avvio.
+Su Windows 10/11 esegui `INSTALL.bat`, poi avvia `RUN.vbs` (o il collegamento Gallery-DL sul Desktop). A ogni esecuzione l’installer confronta le versioni presenti con le ultime release stabili disponibili e aggiorna automaticamente gallery-dl, yt-dlp e le relative dipendenze. Prepara inoltre Python e FFmpeg in un ambiente isolato. Per le pagine dinamiche usa Google Chrome, Microsoft Edge o Brave già installato nel sistema: non scarica una seconda copia di Chromium. `RUN_DEBUG.cmd` mostra eventuali problemi di avvio.
 
 ## Uso
 
@@ -13,6 +13,8 @@ Su Windows 10/11 esegui `INSTALL.bat`, poi avvia `RUN.vbs` (o il collegamento Ga
 3. Premi **Scarica**. **Apri cartella** mostra il risultato; **Annulla** interrompe il lavoro senza rimuovere i file completati.
 
 **Aggiorna** aggiorna gallery-dl e yt-dlp. Dopo un aggiornamento del progetto, esegui nuovamente `INSTALL.bat` per allineare tutte le dipendenze. L’installer rimuove anche l’eventuale vecchia cartella `.browser-binaries`, che non serve più.
+
+La finestra avviata da `RUN.vbs` e il collegamento sul Desktop usano l’[icona fornita da Icons8](https://img.icons8.com/?size=100&id=mRzzo2KBnP3n&format=png&color=000000).
 
 ## Come funziona
 
