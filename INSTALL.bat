@@ -38,18 +38,23 @@ if "%CHECK_ONLY%"=="1" (
     echo [CONTROLLO] Python: !PYTHON_STATUS!
     set "EXTRA_OK=0"
     set "BROWSER_OK=0"
+    set "GDL_OK=0"
     if exist "%VENV_GDL%" (
         for /f "delims=" %%V in ('"%VENV_GDL%" --version 2^>nul') do set "GDL_VERSION=%%V"
-        echo [OK] gallery-dl !GDL_VERSION!
+        "%VENV_PY%" -c "from gallery_dl.version import __version__; raise SystemExit(tuple(map(int, __version__.split('.')[:3])) < (1, 32, 12))" >nul 2>&1 && set "GDL_OK=1"
+        if "!GDL_OK!"=="1" (echo [OK] gallery-dl !GDL_VERSION!) else (echo [OBSOLETO] gallery-dl !GDL_VERSION!; serve almeno la 1.32.12)
         "%VENV_PY%" -c "import bs4, PIL, playwright, requests" >nul 2>&1 && set "EXTRA_OK=1"
     ) else (
         echo [MANCANTE] Ambiente locale gallery-dl
     )
     if "!EXTRA_OK!"=="1" (echo [OK] Componenti per pagine web) else (echo [MANCANTE] Componenti per pagine web)
-    if exist "%PROJECT_DIR%.browser-binaries\chromium-*" set "BROWSER_OK=1"
-    if "!BROWSER_OK!"=="1" (echo [OK] Browser automatico) else (echo [MANCANTE] Browser automatico)
+    if "!EXTRA_OK!"=="1" (
+        "%VENV_PY%" -c "import engine; raise SystemExit(0 if engine.installed_browser()[0] else 1)" >nul 2>&1
+        if not errorlevel 1 set "BROWSER_OK=1"
+    )
+    if "!BROWSER_OK!"=="1" (echo [OK] Browser Chromium già installato nel sistema) else (echo [MANCANTE] Google Chrome, Microsoft Edge o Brave)
     if "!FFMPEG_OK!"=="1" (echo [OK] FFmpeg) else (echo [MANCANTE] FFmpeg)
-    if defined PYTHON_LAUNCHER if exist "%VENV_GDL%" if "!EXTRA_OK!"=="1" if "!BROWSER_OK!"=="1" if "!FFMPEG_OK!"=="1" exit /b 0
+    if defined PYTHON_LAUNCHER if "!GDL_OK!"=="1" if "!EXTRA_OK!"=="1" if "!BROWSER_OK!"=="1" if "!FFMPEG_OK!"=="1" exit /b 0
     exit /b 2
 )
 
@@ -102,11 +107,15 @@ if errorlevel 1 (
 )
 
 echo.
-set "PLAYWRIGHT_BROWSERS_PATH=%PROJECT_DIR%.browser-binaries"
-"%VENV_PY%" -m playwright install chromium
+echo Controllo del browser già installato...
+"%VENV_PY%" -c "import engine; path,name,_=engine.installed_browser(); print('[OK] '+name if path else '[MANCANTE] Google Chrome, Microsoft Edge o Brave'); raise SystemExit(0 if path else 1)"
 if errorlevel 1 (
-    call :fatal "Installazione del browser automatico non riuscita."
+    call :fatal "Installa Google Chrome, Microsoft Edge o Brave e riprova."
     exit /b 1
+)
+if exist "%PROJECT_DIR%.browser-binaries" (
+    echo [PULIZIA] Rimuovo il vecchio Chromium incluso, non più necessario...
+    rmdir /s /q "%PROJECT_DIR%.browser-binaries"
 )
 echo [4/6] Controllo di FFmpeg per video HLS/DASH e Pixiv Ugoira...
 call :find_ffmpeg
