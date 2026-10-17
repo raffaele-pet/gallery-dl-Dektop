@@ -324,8 +324,7 @@ class App(tk.Tk):
             self.cancelled = False
             self.set_busy(True)
             self.status.set('Aggiornamento del motore…')
-            self.launch(['-m', 'pip', 'install', '--upgrade', '--upgrade-strategy',
-                         'eager', 'gallery-dl', 'yt-dlp'])
+            self.launch([str(APP_DIR / 'maintenance.py')])
 
     def close(self):
         if self.busy and not messagebox.askyesno('Chiudere?', 'Annullare l’operazione e chiudere?'):

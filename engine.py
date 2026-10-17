@@ -402,12 +402,32 @@ def gallery_download(url, destination, cookies=None, publish_logs=True,
 
 
 def instagram_download(url, destination, images=True, videos=True, separate_media=False):
-    """Use gallery-dl 1.32.12+ with a current browser session."""
+    """Use the corrected upstream extractor with a current browser session."""
+    from maintenance import clear_instagram_cache, instagram_fix_available
+    from gallery_dl.version import __version__
+    emit('log', text='Motore Instagram: gallery-dl ' + __version__)
+    if not instagram_fix_available():
+        raise ValueError('Il motore Instagram richiede la correzione ufficiale del '
+                         '15/10/2026. Premi Aggiorna oppure esegui INSTALL.bat.')
+    cache_retried = False
+
+    def download(cookies, publish_logs=True):
+        nonlocal cache_retried
+        options = dict(images=images, videos=videos, separate_media=separate_media)
+        if not publish_logs:
+            options['publish_logs'] = False
+        result = gallery_download(url, destination, cookies, **options)
+        if not result[0] and not cache_retried and any(
+                'NotFoundError' in line for line in result[2]):
+            cache_retried = True
+            emit('log', text='Rinnovo la cache Instagram e riprovo una sola volta…')
+            clear_instagram_cache()
+            result = gallery_download(url, destination, cookies, **options)
+        return result
+
     cookies = system_instagram_cookies()
     if any(cookie['name'] == 'sessionid' for cookie in cookies):
-        downloaded, failed, logs = gallery_download(
-            url, destination, cookies, publish_logs=False, images=images,
-            videos=videos, separate_media=separate_media)
+        downloaded, failed, logs = download(cookies, publish_logs=False)
         if downloaded:
             emit('log', text='Sessione Instagram riutilizzata dal browser installato.')
             for line in logs:
@@ -416,9 +436,7 @@ def instagram_download(url, destination, images=True, videos=True, separate_medi
 
     cookies = instagram_browser_cookies(url)
     if cookies:
-        downloaded, failed, logs = gallery_download(
-            url, destination, cookies, publish_logs=False, images=images,
-            videos=videos, separate_media=separate_media)
+        downloaded, failed, logs = download(cookies, publish_logs=False)
         if downloaded:
             for line in logs:
                 emit('log', text=line)
@@ -427,9 +445,11 @@ def instagram_download(url, destination, images=True, videos=True, separate_medi
             emit('log', text=line)
 
     cookies = instagram_browser_cookies(url, interactive=True)
-    downloaded, failed, _ = gallery_download(
-        url, destination, cookies, images=images, videos=videos,
-        separate_media=separate_media)
+    downloaded, failed, logs = download(cookies)
+    if not downloaded and any('NotFoundError' in line for line in logs):
+        raise ValueError('Instagram non ha restituito il profilo anche dopo il rinnovo '
+                         'della cache. Verifica che il link si apra nel browser e che '
+                         'l’account con cui hai effettuato l’accesso possa vederlo.')
     return downloaded, failed
 
 

@@ -169,6 +169,71 @@ class Tests(unittest.TestCase):
             self.assertTrue((Path(tmp) / 'Immagini').is_dir())
             self.assertTrue((Path(tmp) / 'Video').is_dir())
 
+    def test_instagram_notfound_retries_with_same_session_and_filters(self):
+        url = 'https://www.instagram.com/example/'
+        cookies = [{'name': 'sessionid', 'value': 'test', 'domain': '.instagram.com'}]
+        error = (0, 4, ['[instagram][error] NotFoundError: Requested user could not be found'])
+        with tempfile.TemporaryDirectory() as tmp, contextlib.redirect_stdout(io.StringIO()), \
+                patch('maintenance.instagram_fix_available', return_value=True), \
+                patch('maintenance.clear_instagram_cache') as clear_cache, \
+                patch('engine.system_instagram_cookies', return_value=cookies), \
+                patch('engine.instagram_browser_cookies') as browser, \
+                patch('engine.gallery_download', side_effect=[error, (2, 0, [])]) as download:
+            self.assertEqual(engine.instagram_download(
+                url, Path(tmp), images=True, videos=False, separate_media=True), (2, 0))
+            clear_cache.assert_called_once_with()
+            browser.assert_not_called()
+            self.assertEqual(download.call_args_list, [call(
+                url, Path(tmp), cookies, publish_logs=False, images=True,
+                videos=False, separate_media=True)] * 2)
+
+    def test_instagram_cache_retry_is_bounded(self):
+        url = 'https://www.instagram.com/example/'
+        cookies = [{'name': 'sessionid', 'value': 'test', 'domain': '.instagram.com'}]
+        error = (0, 4, ['[instagram][error] NotFoundError: Requested user could not be found'])
+        with tempfile.TemporaryDirectory() as tmp, contextlib.redirect_stdout(io.StringIO()), \
+                patch('maintenance.instagram_fix_available', return_value=True), \
+                patch('maintenance.clear_instagram_cache') as clear_cache, \
+                patch('engine.system_instagram_cookies', return_value=cookies), \
+                patch('engine.instagram_browser_cookies', return_value=cookies), \
+                patch('engine.gallery_download', return_value=error) as download:
+            with self.assertRaisesRegex(ValueError, 'anche dopo il rinnovo'):
+                engine.instagram_download(url, Path(tmp))
+            clear_cache.assert_called_once_with()
+            self.assertEqual(download.call_count, 4)
+
+    def test_instagram_old_engine_explains_how_to_update(self):
+        with contextlib.redirect_stdout(io.StringIO()), \
+                patch('maintenance.instagram_fix_available', return_value=False), \
+                patch('engine.system_instagram_cookies') as cookies:
+            with self.assertRaisesRegex(ValueError, 'Premi Aggiorna'):
+                engine.instagram_download('https://www.instagram.com/example/', Path('.'))
+            cookies.assert_not_called()
+
+    def test_update_installs_official_fix_when_stable_is_outdated(self):
+        import maintenance
+        with contextlib.redirect_stdout(io.StringIO()), \
+                patch('maintenance.subprocess.run') as run, \
+                patch('maintenance.instagram_fix_available', side_effect=[False, True]), \
+                patch('maintenance.metadata.version', return_value='1.33.0.dev0'), \
+                patch('maintenance.clear_instagram_cache') as clear_cache:
+            maintenance.update()
+            self.assertEqual(run.call_count, 2)
+            self.assertEqual(run.call_args_list[0].args[0][0], sys.executable)
+            self.assertIn(str(maintenance.APP_DIR / 'requirements.txt'), run.call_args_list[0].args[0])
+            self.assertEqual(run.call_args_list[1].args[0][-1], maintenance.INSTAGRAM_FIX_URL)
+            clear_cache.assert_called_once_with()
+
+    def test_update_preserves_engine_that_already_contains_fix(self):
+        import maintenance
+        with contextlib.redirect_stdout(io.StringIO()), \
+                patch('maintenance.subprocess.run') as run, \
+                patch('maintenance.instagram_fix_available', return_value=True), \
+                patch('maintenance.metadata.version', return_value='1.33.0'), \
+                patch('maintenance.clear_instagram_cache'):
+            maintenance.update()
+            self.assertEqual(run.call_count, 1)
+
     def test_gallery_markers(self):
         with tempfile.TemporaryDirectory() as tmp, contextlib.redirect_stdout(io.StringIO()) as output:
             # gallery-dl's generic direct-image extractor, real subprocess.

@@ -26,6 +26,10 @@ if not exist "%PROJECT_DIR%RUN.vbs" (
     call :fatal "Manca RUN.vbs."
     exit /b 1
 )
+if not exist "%PROJECT_DIR%maintenance.py" (
+    call :fatal "Manca maintenance.py. Aggiorna tutti i file del progetto."
+    exit /b 1
+)
 if not exist "%PROJECT_DIR%assets\gallery-dl-logo.png" (
     call :fatal "Manca il logo dell'applicazione."
     exit /b 1
@@ -49,8 +53,8 @@ if "%CHECK_ONLY%"=="1" (
     set "GDL_OK=0"
     if exist "%VENV_GDL%" (
         for /f "delims=" %%V in ('"%VENV_GDL%" --version 2^>nul') do set "GDL_VERSION=%%V"
-        "%VENV_PY%" -c "from gallery_dl.version import __version__; raise SystemExit(tuple(map(int, __version__.split('.')[:3])) < (1, 32, 12))" >nul 2>&1 && set "GDL_OK=1"
-        if "!GDL_OK!"=="1" (echo [OK] gallery-dl !GDL_VERSION!) else (echo [OBSOLETO] gallery-dl !GDL_VERSION!; serve almeno la 1.32.12)
+        "%VENV_PY%" -c "import sys; sys.path.insert(0, sys.argv[1]); import maintenance; raise SystemExit(0 if maintenance.instagram_fix_available() else 1)" "%PROJECT_DIR%." >nul 2>&1 && set "GDL_OK=1"
+        if "!GDL_OK!"=="1" (echo [OK] gallery-dl !GDL_VERSION! con correzione Instagram) else (echo [OBSOLETO] gallery-dl !GDL_VERSION!; esegui INSTALL.bat per la correzione Instagram)
         "%VENV_PY%" -c "import bs4, PIL, playwright, requests" >nul 2>&1 && set "EXTRA_OK=1"
     ) else (
         echo [MANCANTE] Ambiente locale gallery-dl
@@ -113,8 +117,8 @@ set "YTDLP_BEFORE=non installato"
 if exist "%VENV_GDL%" for /f "delims=" %%V in ('"%VENV_GDL%" --version 2^>nul') do set "GDL_BEFORE=%%V"
 if exist "%VENV_YTDLP%" for /f "delims=" %%V in ('"%VENV_YTDLP%" --version 2^>nul') do set "YTDLP_BEFORE=%%V"
 echo Versione gallery-dl presente: !GDL_BEFORE!
-echo Controllo le ultime release stabili disponibili e applico gli aggiornamenti...
-"%VENV_PY%" -m pip install --upgrade --upgrade-strategy eager -r "%PROJECT_DIR%requirements.txt"
+echo Controllo gli aggiornamenti e la correzione ufficiale Instagram...
+"%VENV_PY%" -u "%PROJECT_DIR%maintenance.py"
 if errorlevel 1 (
     call :fatal "Installazione dei pacchetti Python non riuscita."
     exit /b 1
@@ -173,7 +177,7 @@ if errorlevel 1 (
     call :fatal "yt-dlp non supera la verifica."
     exit /b 1
 )
-"%VENV_PY%" -m py_compile "%PROJECT_DIR%app.py" "%PROJECT_DIR%engine.py" "%PROJECT_DIR%gallery_worker.py"
+"%VENV_PY%" -m py_compile "%PROJECT_DIR%app.py" "%PROJECT_DIR%engine.py" "%PROJECT_DIR%gallery_worker.py" "%PROJECT_DIR%maintenance.py"
 if errorlevel 1 (
     call :fatal "app.py contiene un errore di sintassi."
     exit /b 1
