@@ -11,6 +11,7 @@ import subprocess
 import sys
 import time
 from urllib.parse import unquote, urljoin, urlsplit, urlunsplit
+from network import http_session
 import requests
 from bs4 import BeautifulSoup
 from PIL import Image
@@ -158,8 +159,12 @@ def response_bytes(response):
 
 
 def generic_download(url, destination):
+    with http_session() as session:
+        return _generic_download(url, destination, session)
+
+
+def _generic_download(url, destination, session):
     folder = destination
-    session = requests.Session()
     session.headers.update({'User-Agent': USER_AGENT})
     emit('status', text='Leggo la pagina e cerco le immagini…')
     with session.get(url, timeout=(15, 40), stream=True) as response:
@@ -198,7 +203,6 @@ def generic_download(url, destination):
         except (requests.RequestException, OSError, ValueError, Image.DecompressionBombError) as exc:
             failed += 1
             emit('log', text=f'Immagine {index} non scaricabile ({type(exc).__name__}).')
-    session.close()
     if not count:
         raise ValueError('Nessuna immagine scaricata: i file trovati non erano immagini valide o erano bloccati.')
     return count, failed
@@ -210,7 +214,7 @@ def video_download(url, destination):
     before = {path.resolve() for path in destination.rglob('*')
               if path.is_file() and path.suffix.lower() in VIDEO_EXTENSIONS}
     command = [
-        sys.executable, '-m', 'yt_dlp', '--no-colors', '--newline',
+        sys.executable, '-m', 'yt_dlp', '--ignore-config', '--no-colors', '--newline',
         '--windows-filenames', '--paths', str(destination), '--retries', '2',
         '--fragment-retries', '2', '--socket-timeout', '25',
         '--print', 'after_move:__YTDLP_DONE__%(filepath)s', url,
@@ -403,12 +407,12 @@ def gallery_download(url, destination, cookies=None, publish_logs=True,
 
 def instagram_download(url, destination, images=True, videos=True, separate_media=False):
     """Use the corrected upstream extractor with a current browser session."""
-    from maintenance import clear_instagram_cache, instagram_fix_available
+    from maintenance import clear_instagram_cache, engine_ready
     from gallery_dl.version import __version__
     emit('log', text='Motore Instagram: gallery-dl ' + __version__)
-    if not instagram_fix_available():
-        raise ValueError('Il motore Instagram richiede la correzione ufficiale del '
-                         '15/10/2026. Premi Aggiorna oppure esegui INSTALL.bat.')
+    if not engine_ready():
+        raise ValueError('Il motore Instagram è obsoleto o usa una vecchia versione di '
+                         'sviluppo. Premi Aggiorna per installare la release ufficiale attuale.')
     cache_retried = False
 
     def download(cookies, publish_logs=True):

@@ -174,7 +174,7 @@ class Tests(unittest.TestCase):
         cookies = [{'name': 'sessionid', 'value': 'test', 'domain': '.instagram.com'}]
         error = (0, 4, ['[instagram][error] NotFoundError: Requested user could not be found'])
         with tempfile.TemporaryDirectory() as tmp, contextlib.redirect_stdout(io.StringIO()), \
-                patch('maintenance.instagram_fix_available', return_value=True), \
+                patch('maintenance.engine_ready', return_value=True), \
                 patch('maintenance.clear_instagram_cache') as clear_cache, \
                 patch('engine.system_instagram_cookies', return_value=cookies), \
                 patch('engine.instagram_browser_cookies') as browser, \
@@ -192,7 +192,7 @@ class Tests(unittest.TestCase):
         cookies = [{'name': 'sessionid', 'value': 'test', 'domain': '.instagram.com'}]
         error = (0, 4, ['[instagram][error] NotFoundError: Requested user could not be found'])
         with tempfile.TemporaryDirectory() as tmp, contextlib.redirect_stdout(io.StringIO()), \
-                patch('maintenance.instagram_fix_available', return_value=True), \
+                patch('maintenance.engine_ready', return_value=True), \
                 patch('maintenance.clear_instagram_cache') as clear_cache, \
                 patch('engine.system_instagram_cookies', return_value=cookies), \
                 patch('engine.instagram_browser_cookies', return_value=cookies), \
@@ -204,35 +204,55 @@ class Tests(unittest.TestCase):
 
     def test_instagram_old_engine_explains_how_to_update(self):
         with contextlib.redirect_stdout(io.StringIO()), \
-                patch('maintenance.instagram_fix_available', return_value=False), \
+                patch('maintenance.engine_ready', return_value=False), \
                 patch('engine.system_instagram_cookies') as cookies:
             with self.assertRaisesRegex(ValueError, 'Premi Aggiorna'):
                 engine.instagram_download('https://www.instagram.com/example/', Path('.'))
             cookies.assert_not_called()
 
-    def test_update_installs_official_fix_when_stable_is_outdated(self):
+    def test_update_replaces_higher_dev_version_with_current_stable(self):
         import maintenance
+        releases = {'gallery-dl': '1.32.18', 'yt-dlp': '2026.10.21'}
         with contextlib.redirect_stdout(io.StringIO()), \
                 patch('maintenance.subprocess.run') as run, \
-                patch('maintenance.instagram_fix_available', side_effect=[False, True]), \
+                patch('maintenance.latest_releases', return_value=releases), \
                 patch('maintenance.metadata.version', return_value='1.33.0.dev0'), \
+                patch('maintenance.verify_engines') as verify, \
                 patch('maintenance.clear_instagram_cache') as clear_cache:
             maintenance.update()
-            self.assertEqual(run.call_count, 2)
-            self.assertEqual(run.call_args_list[0].args[0][0], sys.executable)
-            self.assertIn(str(maintenance.APP_DIR / 'requirements.txt'), run.call_args_list[0].args[0])
-            self.assertEqual(run.call_args_list[1].args[0][-1], maintenance.INSTAGRAM_FIX_URL)
+            command = run.call_args.args[0]
+            self.assertEqual(command[0], sys.executable)
+            self.assertIn('gallery-dl==1.32.18', command)
+            self.assertIn('yt-dlp[default]==2026.10.21', command)
+            verify.assert_called_once_with(releases)
             clear_cache.assert_called_once_with()
 
-    def test_update_preserves_engine_that_already_contains_fix(self):
+    def test_update_failure_does_not_report_verified_success(self):
         import maintenance
+        releases = {'gallery-dl': '1.32.18', 'yt-dlp': '2026.10.21'}
         with contextlib.redirect_stdout(io.StringIO()), \
-                patch('maintenance.subprocess.run') as run, \
-                patch('maintenance.instagram_fix_available', return_value=True), \
-                patch('maintenance.metadata.version', return_value='1.33.0'), \
-                patch('maintenance.clear_instagram_cache'):
-            maintenance.update()
-            self.assertEqual(run.call_count, 1)
+                patch('maintenance.subprocess.run', side_effect=subprocess.CalledProcessError(1, 'pip')), \
+                patch('maintenance.latest_releases', return_value=releases), \
+                patch('maintenance.verify_engines') as verify, \
+                patch('maintenance.clear_instagram_cache') as clear_cache:
+            with self.assertRaises(subprocess.CalledProcessError):
+                maintenance.update()
+            verify.assert_not_called()
+            clear_cache.assert_not_called()
+
+    def test_verification_checks_the_executed_cli_version(self):
+        import maintenance
+        result = subprocess.CompletedProcess([], 0, stdout='1.33.0-dev\n')
+        with patch('maintenance.subprocess.run', return_value=result):
+            with self.assertRaises(ValueError):
+                maintenance.verify_engines({'gallery-dl': '1.32.18', 'yt-dlp': '2026.10.21'})
+
+    def test_engine_readiness_migrates_legacy_dev_builds(self):
+        import maintenance
+        for version, ready in [('1.33.0.dev0', False), ('1.32.17', False),
+                               ('1.32.18', True), ('1.33.1', True)]:
+            with patch('maintenance.metadata.version', return_value=version):
+                self.assertEqual(maintenance.engine_ready(), ready, version)
 
     def test_gallery_markers(self):
         with tempfile.TemporaryDirectory() as tmp, contextlib.redirect_stdout(io.StringIO()) as output:

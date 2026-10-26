@@ -4,6 +4,7 @@ __pycache__/
 .browser-profile/
 .browser-binaries/
 .gallery-dl-gui.json
+.update-backups/
 *.part
 *.temp
 *.log

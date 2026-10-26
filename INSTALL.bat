@@ -30,6 +30,14 @@ if not exist "%PROJECT_DIR%maintenance.py" (
     call :fatal "Manca maintenance.py. Aggiorna tutti i file del progetto."
     exit /b 1
 )
+if not exist "%PROJECT_DIR%network.py" (
+    call :fatal "Manca network.py. Aggiorna tutti i file del progetto."
+    exit /b 1
+)
+if not exist "%PROJECT_DIR%app_update.py" (
+    call :fatal "Manca app_update.py. Aggiorna tutti i file del progetto."
+    exit /b 1
+)
 if not exist "%PROJECT_DIR%assets\gallery-dl-logo.png" (
     call :fatal "Manca il logo dell'applicazione."
     exit /b 1
@@ -53,7 +61,7 @@ if "%CHECK_ONLY%"=="1" (
     set "GDL_OK=0"
     if exist "%VENV_GDL%" (
         for /f "delims=" %%V in ('"%VENV_GDL%" --version 2^>nul') do set "GDL_VERSION=%%V"
-        "%VENV_PY%" -c "import sys; sys.path.insert(0, sys.argv[1]); import maintenance; raise SystemExit(0 if maintenance.instagram_fix_available() else 1)" "%PROJECT_DIR%." >nul 2>&1 && set "GDL_OK=1"
+        "%VENV_PY%" -c "import sys; sys.path.insert(0, sys.argv[1]); import maintenance; raise SystemExit(0 if maintenance.engine_ready() else 1)" "%PROJECT_DIR%." >nul 2>&1 && set "GDL_OK=1"
         if "!GDL_OK!"=="1" (echo [OK] gallery-dl !GDL_VERSION! con correzione Instagram) else (echo [OBSOLETO] gallery-dl !GDL_VERSION!; esegui INSTALL.bat per la correzione Instagram)
         "%VENV_PY%" -c "import bs4, PIL, playwright, requests" >nul 2>&1 && set "EXTRA_OK=1"
     ) else (
@@ -104,7 +112,7 @@ if not exist "%VENV_PY%" (
 ) else (
     echo [OK] Ambiente virtuale già presente.
 )
-"%VENV_PY%" -m pip install --upgrade pip setuptools wheel
+"%VENV_PY%" -m pip install --upgrade pip setuptools wheel requests truststore
 if errorlevel 1 (
     call :fatal "Aggiornamento degli strumenti Python non riuscito."
     exit /b 1
@@ -117,8 +125,8 @@ set "YTDLP_BEFORE=non installato"
 if exist "%VENV_GDL%" for /f "delims=" %%V in ('"%VENV_GDL%" --version 2^>nul') do set "GDL_BEFORE=%%V"
 if exist "%VENV_YTDLP%" for /f "delims=" %%V in ('"%VENV_YTDLP%" --version 2^>nul') do set "YTDLP_BEFORE=%%V"
 echo Versione gallery-dl presente: !GDL_BEFORE!
-echo Controllo gli aggiornamenti e la correzione ufficiale Instagram...
-"%VENV_PY%" -u "%PROJECT_DIR%maintenance.py"
+echo Controllo le release ufficiali attuali e verifico i motori installati...
+"%VENV_PY%" -u "%PROJECT_DIR%maintenance.py" --dependencies-only
 if errorlevel 1 (
     call :fatal "Installazione dei pacchetti Python non riuscita."
     exit /b 1
@@ -177,7 +185,7 @@ if errorlevel 1 (
     call :fatal "yt-dlp non supera la verifica."
     exit /b 1
 )
-"%VENV_PY%" -m py_compile "%PROJECT_DIR%app.py" "%PROJECT_DIR%engine.py" "%PROJECT_DIR%gallery_worker.py" "%PROJECT_DIR%maintenance.py"
+"%VENV_PY%" -m py_compile "%PROJECT_DIR%app.py" "%PROJECT_DIR%engine.py" "%PROJECT_DIR%gallery_worker.py" "%PROJECT_DIR%maintenance.py" "%PROJECT_DIR%network.py" "%PROJECT_DIR%app_update.py"
 if errorlevel 1 (
     call :fatal "app.py contiene un errore di sintassi."
     exit /b 1

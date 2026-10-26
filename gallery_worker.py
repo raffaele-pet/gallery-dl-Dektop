@@ -1,6 +1,7 @@
 """Scoped login session over stdin, never exported to a cookie file."""
 import json
 import sys
+import network  # Configure system certificate verification before gallery-dl.
 from gallery_dl import config, main
 
 IMAGE_EXTENSIONS = (

@@ -38,6 +38,8 @@ class App(tk.Tk):
         self.process = None
         self.busy = self.cancelled = False
         self.saved = self.existing = 0
+        self.update_restart_required = False
+        self.update_verified = False
         destination = str(Path('Downloads') / 'gallery-dl')
         prefs = {}
         try:
@@ -299,13 +301,20 @@ class App(tk.Tk):
             elif kind == 'done':
                 self.status.set(event['text'])
                 self.append(event['text'])
+            elif kind == 'update_result':
+                self.update_verified = True
+                self.update_restart_required = bool(event.get('restart_required'))
             elif kind == 'exit':
                 self.process = None
                 self.set_busy(False)
                 if self.cancelled:
                     self.status.set('Annullato. I file già scaricati restano nella cartella.')
                 elif event.get('update'):
-                    self.status.set('Aggiornamento completato.' if event['code'] == 0 else 'Aggiornamento non riuscito: vedi dettagli.')
+                    text = 'Aggiornamento verificato.'
+                    if self.update_restart_required:
+                        text += ' Riapri l’app per caricare la nuova interfaccia.'
+                    self.status.set(text if event['code'] == 0 and self.update_verified
+                                    else 'Aggiornamento non riuscito o non verificato: vedi dettagli.')
                 elif event['code'] != 0:
                     self.status.set(f'Download incompleto: {self.saved} file salvati. Vedi dettagli.')
         self.after(100, self.poll)
@@ -322,8 +331,11 @@ class App(tk.Tk):
     def update_engine(self):
         if not self.busy:
             self.cancelled = False
+            self.update_restart_required = False
+            self.update_verified = False
             self.set_busy(True)
-            self.status.set('Aggiornamento del motore…')
+            self.status.set('Controllo aggiornamenti dell’app e dei motori…')
+            self.append('Controllo applicazione, release ufficiali e dipendenze…')
             self.launch([str(APP_DIR / 'maintenance.py')])
 
     def close(self):
