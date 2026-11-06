@@ -43,16 +43,16 @@ def normalize_urls(text):
             value = 'https://' + value
         parsed = urlsplit(value)
         if parsed.scheme.lower() not in ('http', 'https') or not parsed.hostname or parsed.username or parsed.password:
-            raise ValueError('Incolla un link web valido, per esempio https://www.repubblica.it/')
+            raise ValueError('Enter a valid web URL, such as https://example.com/')
         try:
             parsed.port
         except ValueError:
-            raise ValueError('La porta nel link non è valida.') from None
+            raise ValueError('The URL contains an invalid port.') from None
         value = urlunsplit((parsed.scheme.lower(), parsed.netloc.lower(), parsed.path or '/', parsed.query, ''))
         if value not in result:
             result.append(value)
     if not result:
-        raise ValueError('Incolla almeno un link.')
+        raise ValueError('Enter at least one URL.')
     return result
 
 
@@ -137,7 +137,7 @@ def save_image(data, url, folder, filter_small=True):
                  'AVIF': '.avif', 'TIFF': '.tiff', 'BMP': '.bmp'}.get(fmt)
     if not extension:
         return None
-    name = re.sub(r'[^\w-]+', '-', Path(unquote(urlsplit(url).path)).stem).strip('-')[:70] or 'immagine'
+    name = re.sub(r'[^\w-]+', '-', Path(unquote(urlsplit(url).path)).stem).strip('-')[:70] or 'image'
     path = folder / (name + '-' + hashlib.sha256(data).hexdigest()[:16] + extension)
     existing = path.exists() and path.read_bytes() == data
     if not existing:
@@ -154,7 +154,7 @@ def response_bytes(response):
     for chunk in response.iter_content(65536):
         result.extend(chunk)
         if len(result) > MAX_BYTES:
-            raise ValueError('File troppo grande (oltre 80 MB).')
+            raise ValueError('File is too large (over 80 MB).')
     return bytes(result)
 
 
@@ -166,7 +166,7 @@ def generic_download(url, destination):
 def _generic_download(url, destination, session):
     folder = destination
     session.headers.update({'User-Agent': USER_AGENT})
-    emit('status', text='Leggo la pagina e cerco le immagini…')
+    emit('status', text='Reading the page and looking for images…')
     with session.get(url, timeout=(15, 40), stream=True) as response:
         data = response_bytes(response)
         base = response.url
@@ -174,21 +174,21 @@ def _generic_download(url, destination, session):
     if content_type.startswith('image/'):
         saved = save_image(data, base, folder, filter_small=False)
         if not saved:
-            raise ValueError('Formato immagine non supportato.')
+            raise ValueError('Unsupported image format.')
         emit('file', name=saved[0].name, existing=saved[1])
         return 1, 0
     candidates = image_urls(str(BeautifulSoup(data, 'html.parser')), base)
     if not candidates:
-        emit('status', text='La pagina usa contenuti dinamici: avvio il browser automatico…')
+        emit('status', text='The page uses dynamic content. Opening the browser…')
         candidates = rendered_images(base)
     if not candidates:
-        raise ValueError('Nessuna immagine trovata nella pagina. Il sito potrebbe richiedere l’accesso o bloccare il download.')
-    emit('log', text=f'Trovati {len(candidates)} indirizzi immagine. Verifico e scarico i file…')
+        raise ValueError('No images found on the page. The site may require sign-in or block downloads.')
+    emit('log', text=f'Found {len(candidates)} image URLs. Checking and downloading files…')
     session.headers['Referer'] = base
     count = failed = 0
     seen = set()
     for index, candidate in enumerate(candidates, 1):
-        emit('status', text=f'Immagine {index} di {len(candidates)} · {count} file verificati')
+        emit('status', text=f'Image {index} of {len(candidates)} · {count} verified files')
         try:
             with session.get(candidate, timeout=(10, 25), stream=True) as response:
                 data = response_bytes(response)
@@ -202,9 +202,9 @@ def _generic_download(url, destination, session):
                 emit('file', name=saved[0].name, existing=saved[1])
         except (requests.RequestException, OSError, ValueError, Image.DecompressionBombError) as exc:
             failed += 1
-            emit('log', text=f'Immagine {index} non scaricabile ({type(exc).__name__}).')
+            emit('log', text=f'Could not download image {index} ({type(exc).__name__}).')
     if not count:
-        raise ValueError('Nessuna immagine scaricata: i file trovati non erano immagini valide o erano bloccati.')
+        raise ValueError('No images downloaded: the files were invalid or access was blocked.')
     return count, failed
 
 
@@ -219,7 +219,7 @@ def video_download(url, destination):
         '--fragment-retries', '2', '--socket-timeout', '25',
         '--print', 'after_move:__YTDLP_DONE__%(filepath)s', url,
     ]
-    emit('status', text='Cerco e scarico i video con yt-dlp…')
+    emit('status', text='Finding and downloading videos with yt-dlp…')
     marker = '__YTDLP_DONE__'
     with subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
                           text=True, encoding='utf-8', errors='replace',
@@ -251,7 +251,7 @@ def browser_context(playwright, host, headed=False):
     profile.mkdir(parents=True, exist_ok=True)
     executable, _, _ = installed_browser()
     if not executable:
-        raise ValueError('Installa Google Chrome, Microsoft Edge o Brave e riprova.')
+        raise ValueError('Install Google Chrome, Microsoft Edge, or Brave and try again.')
     return playwright.chromium.launch_persistent_context(str(profile), headless=not headed,
         executable_path=str(executable), viewport={'width': 1150, 'height': 800},
         accept_downloads=False)
@@ -364,17 +364,26 @@ def instagram_browser_cookies(url, interactive=False):
             if not interactive:
                 return []
             _, browser_name, _ = installed_browser()
-            emit('status', text=f'Instagram richiede l’accesso. Accedi nella nuova finestra di {browser_name}: il download ripartirà da solo.')
+            emit('status', text=f'Instagram requires sign-in. Sign in using the new {browser_name} window; the download will resume automatically.')
             deadline = time.monotonic() + 300
             while time.monotonic() < deadline:
                 if page.is_closed():
-                    raise ValueError('Accesso non completato: finestra chiusa.')
+                    raise ValueError('Sign-in was not completed: the browser window was closed.')
                 cookies = context.cookies('https://www.instagram.com/')
                 if any(c['name'] == 'sessionid' for c in cookies) and '/accounts/login' not in page.url:
-                    emit('status', text='Sessione rilevata. Riprendo il download…')
+                    emit('status', text='Session detected. Resuming the download…')
                     return cookies
                 page.wait_for_timeout(1000)
-            raise ValueError('Accesso non completato entro 5 minuti. Premi Scarica per riprovare.')
+            raise ValueError('Sign-in was not completed within 5 minutes. Click Download to try again.')
+
+
+def media_folder_name(destination, kind):
+    """Use English names for new folders and reuse existing localized downloads."""
+    preferred, legacy = {'images': ('Images', 'Immagini'),
+                         'videos': ('Videos', 'Video')}[kind]
+    if not (destination / preferred).exists() and (destination / legacy).is_dir():
+        return legacy
+    return preferred
 
 
 def gallery_download(url, destination, cookies=None, publish_logs=True,
@@ -387,6 +396,8 @@ def gallery_download(url, destination, cookies=None, publish_logs=True,
         process.stdin.write(json.dumps({'urls': urls, 'destination': str(destination),
                                         'cookies': cookies or [], 'images': images,
                                         'videos': videos,
+                                        'image_directory': media_folder_name(destination, 'images'),
+                                        'video_directory': media_folder_name(destination, 'videos'),
                                         'separate_media': separate_media}) + '\n')
         process.stdin.close()
         count = 0
@@ -409,10 +420,10 @@ def instagram_download(url, destination, images=True, videos=True, separate_medi
     """Use the corrected upstream extractor with a current browser session."""
     from maintenance import clear_instagram_cache, engine_ready
     from gallery_dl.version import __version__
-    emit('log', text='Motore Instagram: gallery-dl ' + __version__)
+    emit('log', text='Instagram engine: gallery-dl ' + __version__)
     if not engine_ready():
-        raise ValueError('Il motore Instagram è obsoleto o usa una vecchia versione di '
-                         'sviluppo. Premi Aggiorna per installare la release ufficiale attuale.')
+        raise ValueError('The Instagram engine is outdated or uses an old development '
+                         'build. Click Update to install the current official release.')
     cache_retried = False
 
     def download(cookies, publish_logs=True):
@@ -424,7 +435,7 @@ def instagram_download(url, destination, images=True, videos=True, separate_medi
         if not result[0] and not cache_retried and any(
                 'NotFoundError' in line for line in result[2]):
             cache_retried = True
-            emit('log', text='Rinnovo la cache Instagram e riprovo una sola volta…')
+            emit('log', text='Refreshing the Instagram cache and retrying once…')
             clear_instagram_cache()
             result = gallery_download(url, destination, cookies, **options)
         return result
@@ -433,7 +444,7 @@ def instagram_download(url, destination, images=True, videos=True, separate_medi
     if any(cookie['name'] == 'sessionid' for cookie in cookies):
         downloaded, failed, logs = download(cookies, publish_logs=False)
         if downloaded:
-            emit('log', text='Sessione Instagram riutilizzata dal browser installato.')
+            emit('log', text='Reusing the Instagram session from the installed browser.')
             for line in logs:
                 emit('log', text=line)
             return downloaded, failed
@@ -451,9 +462,9 @@ def instagram_download(url, destination, images=True, videos=True, separate_medi
     cookies = instagram_browser_cookies(url, interactive=True)
     downloaded, failed, logs = download(cookies)
     if not downloaded and any('NotFoundError' in line for line in logs):
-        raise ValueError('Instagram non ha restituito il profilo anche dopo il rinnovo '
-                         'della cache. Verifica che il link si apra nel browser e che '
-                         'l’account con cui hai effettuato l’accesso possa vederlo.')
+        raise ValueError('Instagram did not return the profile after refreshing '
+                         'the cache. Check that the URL opens in your browser and that '
+                         'the signed-in account can view the profile.')
     return downloaded, failed
 
 
@@ -465,38 +476,40 @@ def run(payload):
     videos = bool(payload.get('videos', False))
     separate_media = payload.get('separate_media', True) is not False
     if not images and not videos:
-        raise ValueError('Seleziona almeno Immagini oppure Video.')
+        raise ValueError('Select Images, Videos, or both.')
+    image_folder = destination / media_folder_name(destination, 'images')
+    video_folder = destination / media_folder_name(destination, 'videos')
     if separate_media:
-        (destination / 'Immagini').mkdir(exist_ok=True)
-        (destination / 'Video').mkdir(exist_ok=True)
+        image_folder.mkdir(exist_ok=True)
+        video_folder.mkdir(exist_ok=True)
     count = failures = warnings = 0
     for url in normalize_urls('\n'.join(payload['urls'])):
         host = urlsplit(url).hostname
         instagram = host == 'instagram.com' or host.endswith('.instagram.com')
         dedicated = instagram or extractor.find(url) is not None
-        emit('log', text=f'Sito: {host}')
+        emit('log', text=f'Site: {host}')
         try:
             if not dedicated:
                 downloaded = failed = 0
                 if images:
-                    image_destination = destination / 'Immagini' if separate_media else destination
+                    image_destination = image_folder if separate_media else destination
                     try:
                         image_count, image_failed = generic_download(url, image_destination)
                         downloaded += image_count
                         failed += image_failed
                     except Exception as exc:
                         failed += 1
-                        emit('log', text=f'Immagini: {exc}')
+                        emit('log', text=f'Images: {exc}')
                 if videos:
-                    video_destination = destination / 'Video' if separate_media else destination
+                    video_destination = video_folder if separate_media else destination
                     video_count, video_failed, _ = video_download(url, video_destination)
                     downloaded += video_count
                     failed += bool(video_failed or not video_count)
                 if not downloaded:
-                    raise ValueError('Il sito non ha restituito immagini o video scaricabili con le opzioni selezionate.')
+                    raise ValueError('The site returned no downloadable images or videos for the selected options.')
                 warnings += failed
             else:
-                emit('status', text='Scarico con il motore dedicato al sito…')
+                emit('status', text='Downloading with the site-specific engine…')
                 if not instagram:
                     downloaded, failed, _ = gallery_download(
                         url, destination, images=images, videos=videos,
@@ -506,19 +519,19 @@ def run(payload):
                         url, destination, images=images, videos=videos,
                         separate_media=separate_media)
                 if not downloaded:
-                    raise ValueError('Il sito non ha restituito file scaricabili. Potrebbe richiedere accesso, limitare le richieste o avere un link non più valido.')
+                    raise ValueError('The site returned no downloadable files. Sign-in may be required, requests may be limited, or the URL may be invalid.')
             count += downloaded
             if dedicated:
                 failures += bool(failed)
         except Exception as exc:
             failures += 1
-            emit('error', text=str(exc) if isinstance(exc, ValueError) else f'Operazione non riuscita ({type(exc).__name__}). Verifica il collegamento e riprova.')
+            emit('error', text=str(exc) if isinstance(exc, ValueError) else f'Operation failed ({type(exc).__name__}). Check the URL and try again.')
     if failures:
-        text = f'Download incompleto: {count} file verificati; alcuni contenuti non scaricabili. Vedi dettagli.'
+        text = f'Download incomplete: {count} verified files; some content could not be downloaded. See the details.'
     elif warnings:
-        text = f'Completato: {count} file verificati ({warnings} elementi non validi ignorati).'
+        text = f'Completed: {count} verified files ({warnings} invalid items skipped).'
     else:
-        text = f'Completato: {count} file verificati nella cartella di destinazione.'
+        text = f'Completed: {count} verified files in the destination folder.'
     emit('done', text=text)
     return 1 if failures else 0
 

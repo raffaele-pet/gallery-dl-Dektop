@@ -64,9 +64,29 @@ class UpdateTests(unittest.TestCase):
                 return subprocess.CompletedProcess([], 0, stdout=value)
             with patch('app_update.APP_DIR', root), \
                     patch('app_update.git', side_effect=git_response) as git:
-                with self.assertRaisesRegex(RuntimeError, 'modifiche locali'):
+                with self.assertRaisesRegex(RuntimeError, 'Local code changes'):
                     app_update.update_application()
             self.assertFalse(any(c.args[0] in ('fetch', 'merge') for c in git.call_args_list))
+
+    def test_git_update_migrates_the_previous_repository_name(self):
+        with tempfile.TemporaryDirectory() as tmp, contextlib.redirect_stdout(io.StringIO()):
+            root = Path(tmp)
+            (root / '.git').mkdir()
+            def git_response(*args, **kwargs):
+                if args[:3] == ('remote', 'get-url', 'origin'):
+                    value = 'https://github.com/' + app_update.LEGACY_REPOSITORY + '.git\n'
+                elif args[0] == 'branch':
+                    value = 'main\n'
+                elif args[0] == 'rev-parse':
+                    value = 'a' * 40 + '\n'
+                else:
+                    value = ''
+                return subprocess.CompletedProcess([], 0, stdout=value)
+            with patch('app_update.APP_DIR', root), \
+                    patch('app_update.git', side_effect=git_response) as git:
+                self.assertFalse(app_update.update_application())
+            git.assert_any_call('remote', 'set-url', 'origin',
+                                'https://github.com/' + app_update.REPOSITORY + '.git')
 
     def test_reloaded_updater_failure_propagates_to_gui(self):
         with patch.object(sys, 'argv', ['maintenance.py']), \

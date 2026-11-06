@@ -1,7 +1,7 @@
 @echo off
 setlocal EnableExtensions EnableDelayedExpansion
 chcp 65001 >nul
-title Gallery-DL - Installazione e aggiornamento
+title gallery-dl Desktop - Installation and updates
 color 0F
 
 set "PROJECT_DIR=%~dp0"
@@ -13,41 +13,41 @@ set "CHECK_ONLY=0"
 if /I "%~1"=="--check" set "CHECK_ONLY=1"
 
 echo ================================================================
-echo                    GALLERY-DL INSTALLER
+echo                    gallery-dl Desktop INSTALLER
 echo ================================================================
-echo Cartella progetto: %PROJECT_DIR%
+echo Project folder: %PROJECT_DIR%
 echo.
 
 if not exist "%PROJECT_DIR%app.py" (
-    call :fatal "Manca app.py."
+    call :fatal "app.py is missing."
     exit /b 1
 )
 if not exist "%PROJECT_DIR%RUN.vbs" (
-    call :fatal "Manca RUN.vbs."
+    call :fatal "RUN.vbs is missing."
     exit /b 1
 )
 if not exist "%PROJECT_DIR%maintenance.py" (
-    call :fatal "Manca maintenance.py. Aggiorna tutti i file del progetto."
+    call :fatal "maintenance.py is missing. Update all project files."
     exit /b 1
 )
 if not exist "%PROJECT_DIR%network.py" (
-    call :fatal "Manca network.py. Aggiorna tutti i file del progetto."
+    call :fatal "network.py is missing. Update all project files."
     exit /b 1
 )
 if not exist "%PROJECT_DIR%app_update.py" (
-    call :fatal "Manca app_update.py. Aggiorna tutti i file del progetto."
+    call :fatal "app_update.py is missing. Update all project files."
     exit /b 1
 )
 if not exist "%PROJECT_DIR%assets\gallery-dl-logo.png" (
-    call :fatal "Manca il logo dell'applicazione."
+    call :fatal "The application logo is missing."
     exit /b 1
 )
 if not exist "%PROJECT_DIR%assets\gallery-dl-icon.png" (
-    call :fatal "Manca l'icona PNG dell'applicazione."
+    call :fatal "The application PNG icon is missing."
     exit /b 1
 )
 if not exist "%PROJECT_DIR%assets\gallery-dl-icon.ico" (
-    call :fatal "Manca l'icona Windows dell'applicazione."
+    call :fatal "The application Windows icon is missing."
     exit /b 1
 )
 
@@ -55,164 +55,164 @@ call :find_python
 call :find_ffmpeg
 
 if "%CHECK_ONLY%"=="1" (
-    echo [CONTROLLO] Python: !PYTHON_STATUS!
+    echo [CHECK] Python: !PYTHON_STATUS!
     set "EXTRA_OK=0"
     set "BROWSER_OK=0"
     set "GDL_OK=0"
     if exist "%VENV_GDL%" (
         for /f "delims=" %%V in ('"%VENV_GDL%" --version 2^>nul') do set "GDL_VERSION=%%V"
         "%VENV_PY%" -c "import sys; sys.path.insert(0, sys.argv[1]); import maintenance; raise SystemExit(0 if maintenance.engine_ready() else 1)" "%PROJECT_DIR%." >nul 2>&1 && set "GDL_OK=1"
-        if "!GDL_OK!"=="1" (echo [OK] gallery-dl !GDL_VERSION! con correzione Instagram) else (echo [OBSOLETO] gallery-dl !GDL_VERSION!; esegui INSTALL.bat per la correzione Instagram)
+        if "!GDL_OK!"=="1" (echo [OK] gallery-dl !GDL_VERSION! with current Instagram support) else (echo [OUTDATED] gallery-dl !GDL_VERSION!; run INSTALL.bat to update Instagram support)
         "%VENV_PY%" -c "import bs4, PIL, playwright, requests" >nul 2>&1 && set "EXTRA_OK=1"
     ) else (
-        echo [MANCANTE] Ambiente locale gallery-dl
+        echo [MISSING] Local gallery-dl environment
     )
-    if "!EXTRA_OK!"=="1" (echo [OK] Componenti per pagine web) else (echo [MANCANTE] Componenti per pagine web)
+    if "!EXTRA_OK!"=="1" (echo [OK] Web page components) else (echo [MISSING] Web page components)
     if "!EXTRA_OK!"=="1" (
         "%VENV_PY%" -c "import engine; raise SystemExit(0 if engine.installed_browser()[0] else 1)" >nul 2>&1
         if not errorlevel 1 set "BROWSER_OK=1"
     )
-    if "!BROWSER_OK!"=="1" (echo [OK] Browser Chromium già installato nel sistema) else (echo [MANCANTE] Google Chrome, Microsoft Edge o Brave)
-    if "!FFMPEG_OK!"=="1" (echo [OK] FFmpeg) else (echo [MANCANTE] FFmpeg)
+    if "!BROWSER_OK!"=="1" (echo [OK] Chromium-based browser found on the system) else (echo [MISSING] Google Chrome, Microsoft Edge o Brave)
+    if "!FFMPEG_OK!"=="1" (echo [OK] FFmpeg) else (echo [MISSING] FFmpeg)
     if defined PYTHON_LAUNCHER if "!GDL_OK!"=="1" if "!EXTRA_OK!"=="1" if "!BROWSER_OK!"=="1" if "!FFMPEG_OK!"=="1" exit /b 0
     exit /b 2
 )
 
 where winget.exe >nul 2>&1
 if errorlevel 1 (
-    call :fatal "WinGet non è disponibile. Installa 'App Installer' dal Microsoft Store e riprova."
+    call :fatal "WinGet is not available. Install App Installer from the Microsoft Store and try again."
     exit /b 1
 )
 
-echo [1/6] Controllo di Python...
+echo [1/6] Checking Python...
 if not defined PYTHON_LAUNCHER (
-    echo [INSTALLA] Python 3.12
+    echo [INSTALL] Python 3.12
     winget install --id Python.Python.3.12 --exact --scope user --accept-package-agreements --accept-source-agreements
     if errorlevel 1 (
-        call :fatal "Installazione di Python non riuscita."
+        call :fatal "Python installation failed."
         exit /b 1
     )
     set "PYTHON_LAUNCHER=%LOCALAPPDATA%\Programs\Python\Python312\python.exe"
     if not exist "!PYTHON_LAUNCHER!" call :find_python
 )
 if not defined PYTHON_LAUNCHER (
-    call :fatal "Python non è stato trovato dopo l'installazione."
+    call :fatal "Python was not found after installation."
     exit /b 1
 )
 echo [OK] !PYTHON_STATUS!
 
 echo.
-echo [2/6] Preparazione dell'ambiente isolato...
+echo [2/6] Preparing the isolated environment...
 if not exist "%VENV_PY%" (
     "!PYTHON_LAUNCHER!" -m venv "%VENV_DIR%"
     if errorlevel 1 (
-        call :fatal "Creazione dell'ambiente virtuale non riuscita."
+        call :fatal "Could not create the virtual environment."
         exit /b 1
     )
 ) else (
-    echo [OK] Ambiente virtuale già presente.
+    echo [OK] The virtual environment already exists.
 )
 "%VENV_PY%" -m pip install --upgrade pip setuptools wheel requests truststore
 if errorlevel 1 (
-    call :fatal "Aggiornamento degli strumenti Python non riuscito."
+    call :fatal "Could not update the Python packaging tools."
     exit /b 1
 )
 
 echo.
-echo [3/6] Installazione o aggiornamento di gallery-dl e integrazioni...
-set "GDL_BEFORE=non installato"
-set "YTDLP_BEFORE=non installato"
+echo [3/6] Installing or updating gallery-dl and integrations...
+set "GDL_BEFORE=not installed"
+set "YTDLP_BEFORE=not installed"
 if exist "%VENV_GDL%" for /f "delims=" %%V in ('"%VENV_GDL%" --version 2^>nul') do set "GDL_BEFORE=%%V"
 if exist "%VENV_YTDLP%" for /f "delims=" %%V in ('"%VENV_YTDLP%" --version 2^>nul') do set "YTDLP_BEFORE=%%V"
-echo Versione gallery-dl presente: !GDL_BEFORE!
-echo Controllo le release ufficiali attuali e verifico i motori installati...
+echo Installed gallery-dl version: !GDL_BEFORE!
+echo Checking current official releases and verifying the installed engines...
 "%VENV_PY%" -u "%PROJECT_DIR%maintenance.py" --dependencies-only
 if errorlevel 1 (
-    call :fatal "Installazione dei pacchetti Python non riuscita."
+    call :fatal "Python package installation failed."
     exit /b 1
 )
-set "GDL_AFTER=non disponibile"
-set "YTDLP_AFTER=non disponibile"
+set "GDL_AFTER=not available"
+set "YTDLP_AFTER=not available"
 for /f "delims=" %%V in ('"%VENV_GDL%" --version 2^>nul') do set "GDL_AFTER=%%V"
 for /f "delims=" %%V in ('"%VENV_YTDLP%" --version 2^>nul') do set "YTDLP_AFTER=%%V"
-if "!GDL_BEFORE!"=="!GDL_AFTER!" (echo [OK] gallery-dl !GDL_AFTER! è già aggiornato.) else (echo [AGGIORNATO] gallery-dl !GDL_BEFORE! --^> !GDL_AFTER!)
-if "!YTDLP_BEFORE!"=="!YTDLP_AFTER!" (echo [OK] yt-dlp !YTDLP_AFTER! è già aggiornato.) else (echo [AGGIORNATO] yt-dlp !YTDLP_BEFORE! --^> !YTDLP_AFTER!)
+if "!GDL_BEFORE!"=="!GDL_AFTER!" (echo [OK] gallery-dl !GDL_AFTER! is already up to date.) else (echo [UPDATED] gallery-dl !GDL_BEFORE! --^> !GDL_AFTER!)
+if "!YTDLP_BEFORE!"=="!YTDLP_AFTER!" (echo [OK] yt-dlp !YTDLP_AFTER! is already up to date.) else (echo [UPDATED] yt-dlp !YTDLP_BEFORE! --^> !YTDLP_AFTER!)
 
 echo.
-echo Controllo del browser già installato...
-"%VENV_PY%" -c "import engine; path,name,_=engine.installed_browser(); print('[OK] '+name if path else '[MANCANTE] Google Chrome, Microsoft Edge o Brave'); raise SystemExit(0 if path else 1)"
+echo Checking the installed browser...
+"%VENV_PY%" -c "import engine; path,name,_=engine.installed_browser(); print('[OK] '+name if path else '[MISSING] Google Chrome, Microsoft Edge o Brave'); raise SystemExit(0 if path else 1)"
 if errorlevel 1 (
-    call :fatal "Installa Google Chrome, Microsoft Edge o Brave e riprova."
+    call :fatal "Install Google Chrome, Microsoft Edge, or Brave and try again."
     exit /b 1
 )
 if exist "%PROJECT_DIR%.browser-binaries" (
-    echo [PULIZIA] Rimuovo il vecchio Chromium incluso, non più necessario...
+    echo [CLEANUP] Removing the old bundled Chromium browser...
     rmdir /s /q "%PROJECT_DIR%.browser-binaries"
 )
-echo [4/6] Controllo di FFmpeg per video HLS/DASH e Pixiv Ugoira...
+echo [4/6] Checking FFmpeg for HLS/DASH videos and Pixiv Ugoira...
 call :find_ffmpeg
 if "!FFMPEG_OK!"=="0" (
     winget install --id Gyan.FFmpeg --exact --accept-package-agreements --accept-source-agreements
     if errorlevel 1 (
-        echo [INFO] Pacchetto principale non disponibile, provo il pacchetto FFmpeg per yt-dlp...
+        echo [INFO] The main package is unavailable. Trying the yt-dlp FFmpeg package...
         winget install --id yt-dlp.FFmpeg --exact --accept-package-agreements --accept-source-agreements
     )
     call :find_ffmpeg
-    if "!FFMPEG_OK!"=="0" echo [AVVISO] FFmpeg non è visibile nel PATH corrente. Potrebbe diventarlo dopo il riavvio.
+    if "!FFMPEG_OK!"=="0" echo [WARNING] FFmpeg is not on the current PATH. Restart Windows if necessary.
 ) else (
-    echo [OK] FFmpeg già disponibile.
+    echo [OK] FFmpeg is already available.
     winget upgrade --id Gyan.FFmpeg --exact --accept-package-agreements --accept-source-agreements >nul 2>&1
     winget upgrade --id yt-dlp.FFmpeg --exact --accept-package-agreements --accept-source-agreements >nul 2>&1
 )
 
 echo.
-echo [5/6] Verifica finale...
+echo [5/6] Final verification...
 if not exist "%VENV_GDL%" (
-    call :fatal "gallery-dl.exe non è stato creato."
+    call :fatal "gallery-dl.exe was not created."
     exit /b 1
 )
 if not exist "%VENV_YTDLP%" (
-    call :fatal "yt-dlp.exe non è stato creato."
+    call :fatal "yt-dlp.exe was not created."
     exit /b 1
 )
 "%VENV_GDL%" --version
 if errorlevel 1 (
-    call :fatal "gallery-dl non supera la verifica."
+    call :fatal "gallery-dl verification failed."
     exit /b 1
 )
 "%VENV_YTDLP%" --version
 if errorlevel 1 (
-    call :fatal "yt-dlp non supera la verifica."
+    call :fatal "yt-dlp verification failed."
     exit /b 1
 )
 "%VENV_PY%" -m py_compile "%PROJECT_DIR%app.py" "%PROJECT_DIR%engine.py" "%PROJECT_DIR%gallery_worker.py" "%PROJECT_DIR%maintenance.py" "%PROJECT_DIR%network.py" "%PROJECT_DIR%app_update.py"
 if errorlevel 1 (
-    call :fatal "app.py contiene un errore di sintassi."
+    call :fatal "app.py contains a syntax error."
     exit /b 1
 )
 
 echo.
-echo [6/6] Creazione del collegamento sul Desktop...
+echo [6/6] Creating the desktop shortcut...
 set "GDL_PROJECT=%PROJECT_DIR%"
 powershell.exe -NoProfile -ExecutionPolicy Bypass -Command ^
-  "$project=$env:GDL_PROJECT.TrimEnd('\'); $desktop=[Environment]::GetFolderPath('Desktop'); $shortcut=(New-Object -ComObject WScript.Shell).CreateShortcut((Join-Path $desktop 'Gallery-DL.lnk')); $shortcut.TargetPath=(Join-Path $env:SystemRoot 'System32\wscript.exe'); $shortcut.Arguments='""'+(Join-Path $project 'RUN.vbs')+'""'; $shortcut.WorkingDirectory=$project; $shortcut.Description='Gallery-DL - Image and gallery downloader'; $shortcut.IconLocation=(Join-Path $project 'assets\gallery-dl-icon.ico')+',0'; $shortcut.Save()"
+  "$project=$env:GDL_PROJECT.TrimEnd('\'); $desktop=[Environment]::GetFolderPath('Desktop'); $shell=New-Object -ComObject WScript.Shell; $link=Join-Path $desktop 'gallery-dl Desktop.lnk'; $old=Join-Path $desktop 'Gallery-DL.lnk'; if((Test-Path -LiteralPath $old) -and -not (Test-Path -LiteralPath $link)){ $previous=$shell.CreateShortcut($old); if($previous.WorkingDirectory.TrimEnd('\') -ieq $project.TrimEnd('\')){Move-Item -LiteralPath $old -Destination $link} }; $shortcut=$shell.CreateShortcut($link); $shortcut.TargetPath=(Join-Path $env:SystemRoot 'System32\wscript.exe'); $shortcut.Arguments=([char]34)+(Join-Path $project 'RUN.vbs')+([char]34); $shortcut.WorkingDirectory=$project; $shortcut.Description='Launch gallery-dl Desktop'; $shortcut.IconLocation=(Join-Path $project 'assets\gallery-dl-icon.ico')+',0'; $shortcut.Save()"
 if errorlevel 1 (
-    echo [AVVISO] Non è stato possibile creare il collegamento. RUN.vbs rimane utilizzabile.
+    echo [WARNING] Could not create the shortcut. RUN.vbs is still available.
 ) else (
-    echo [OK] Collegamento Gallery-DL creato sul Desktop.
+    echo [OK] gallery-dl Desktop shortcut created on the desktop.
 )
 
 echo.
 echo ================================================================
-echo Installazione e aggiornamento completati.
-echo Avvia l'app con RUN.vbs o con il collegamento Gallery-DL.
+echo Installation and updates completed.
+echo Launch the app using RUN.vbs or the gallery-dl Desktop shortcut.
 echo ================================================================
 pause
 exit /b 0
 
 :find_python
 set "PYTHON_LAUNCHER="
-set "PYTHON_STATUS=non disponibile"
+set "PYTHON_STATUS=not available"
 if exist "%LOCALAPPDATA%\Programs\Python\Python312\python.exe" (
     set "PYTHON_LAUNCHER=%LOCALAPPDATA%\Programs\Python\Python312\python.exe"
 ) else (
@@ -230,7 +230,7 @@ exit /b 0
 :fatal
 echo.
 echo ================================================================
-echo [ERRORE] %~1
+echo [ERROR] %~1
 echo ================================================================
 if "%CHECK_ONLY%"=="0" pause
 exit /b 1

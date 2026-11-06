@@ -1,10 +1,10 @@
 @echo off
 setlocal
 chcp 65001 >nul
-title Gallery-DL - Debug
+title gallery-dl Desktop - Debug
 set "PROJECT_DIR=%~dp0"
 if not exist "%PROJECT_DIR%.venv\Scripts\python.exe" (
-    echo Gallery-DL non è installato. Esegui prima INSTALL.bat.
+    echo gallery-dl Desktop is not installed. Run INSTALL.bat first.
     pause
     exit /b 1
 )

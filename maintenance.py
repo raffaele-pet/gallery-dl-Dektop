@@ -14,7 +14,7 @@ MIN_GALLERY_VERSION = (1, 32, 18)
 
 def stable_version(value):
     if not re.fullmatch(r'\d+(?:\.\d+)+', value):
-        raise ValueError('Versione stabile non valida: ' + value)
+        raise ValueError('Invalid stable version: ' + value)
     return tuple(int(part) for part in value.split('.'))
 
 
@@ -36,7 +36,7 @@ def latest_releases():
             stable_version(version)
             releases[package] = version
     if stable_version(releases['gallery-dl']) < MIN_GALLERY_VERSION:
-        raise RuntimeError('L’indice non offre ancora una versione gallery-dl compatibile.')
+        raise RuntimeError('The package index does not offer a compatible gallery-dl version.')
     return releases
 
 
@@ -59,9 +59,9 @@ def verify_engines(releases):
         )
         installed = result.stdout.strip()
         if stable_version(installed) != stable_version(releases[package]):
-            raise RuntimeError(package + ': attesa ' + releases[package] +
-                               ', trovata ' + installed)
-        print(package + ' ' + installed + ': verificato.', flush=True)
+            raise RuntimeError(package + ': expected ' + releases[package] +
+                               ', found ' + installed)
+        print(package + ' ' + installed + ': verified.', flush=True)
     subprocess.run([sys.executable, '-m', 'pip', 'check'], check=True)
     # A fresh interpreter ensures newly installed TLS/browser/image/EJS modules load.
     subprocess.run(
@@ -78,8 +78,8 @@ def update():
         try:
             before = metadata.version(package)
         except metadata.PackageNotFoundError:
-            before = 'non installato'
-        print(package + ': ' + before + ' → stabile ufficiale ' + target, flush=True)
+            before = 'not installed'
+        print(package + ': ' + before + ' → official stable ' + target, flush=True)
     # Exact stable targets intentionally replace the old 1.33.0.dev0 snapshot even
     # when its numerical version is higher than the current stable release.
     subprocess.run(
@@ -91,7 +91,7 @@ def update():
     )
     verify_engines(releases)
     clear_instagram_cache()
-    print('Motori, dipendenze e cache Instagram aggiornati e verificati.', flush=True)
+    print('Engines, dependencies, and the Instagram cache have been updated and verified.', flush=True)
 
 
 def main():
@@ -118,5 +118,5 @@ if __name__ == '__main__':
     try:
         main()
     except Exception as exc:
-        print('Aggiornamento non riuscito: ' + str(exc), file=sys.stderr)
+        print('Update failed: ' + str(exc), file=sys.stderr)
         raise SystemExit(1)

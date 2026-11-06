@@ -112,7 +112,7 @@ class Tests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp, contextlib.redirect_stdout(io.StringIO()) as output:
             self.assertEqual(engine.generic_download(self.base + '/partial', Path(tmp)), (1, 1))
             self.assertEqual(engine.run({'urls': [self.base + '/partial'], 'destination': tmp}), 0)
-            self.assertIn('elementi non validi ignorati', output.getvalue())
+            self.assertIn('invalid items skipped', output.getvalue())
 
     def test_empty_is_not_success(self):
         with tempfile.TemporaryDirectory() as tmp, patch('engine.rendered_images', return_value=[]), contextlib.redirect_stdout(io.StringIO()):
@@ -166,8 +166,8 @@ class Tests(unittest.TestCase):
             events = [json.loads(line) for line in result.stdout.splitlines()]
             self.assertEqual(events[-1]['type'], 'done')
             self.assertTrue(any(e['type'] == 'file' for e in events))
-            self.assertTrue((Path(tmp) / 'Immagini').is_dir())
-            self.assertTrue((Path(tmp) / 'Video').is_dir())
+            self.assertTrue((Path(tmp) / 'Images').is_dir())
+            self.assertTrue((Path(tmp) / 'Videos').is_dir())
 
     def test_instagram_notfound_retries_with_same_session_and_filters(self):
         url = 'https://www.instagram.com/example/'
@@ -197,7 +197,7 @@ class Tests(unittest.TestCase):
                 patch('engine.system_instagram_cookies', return_value=cookies), \
                 patch('engine.instagram_browser_cookies', return_value=cookies), \
                 patch('engine.gallery_download', return_value=error) as download:
-            with self.assertRaisesRegex(ValueError, 'anche dopo il rinnovo'):
+            with self.assertRaisesRegex(ValueError, 'after refreshing'):
                 engine.instagram_download(url, Path(tmp))
             clear_cache.assert_called_once_with()
             self.assertEqual(download.call_count, 4)
@@ -206,7 +206,7 @@ class Tests(unittest.TestCase):
         with contextlib.redirect_stdout(io.StringIO()), \
                 patch('maintenance.engine_ready', return_value=False), \
                 patch('engine.system_instagram_cookies') as cookies:
-            with self.assertRaisesRegex(ValueError, 'Premi Aggiorna'):
+            with self.assertRaisesRegex(ValueError, 'Click Update'):
                 engine.instagram_download('https://www.instagram.com/example/', Path('.'))
             cookies.assert_not_called()
 
@@ -254,6 +254,21 @@ class Tests(unittest.TestCase):
             with patch('maintenance.metadata.version', return_value=version):
                 self.assertEqual(maintenance.engine_ready(), ready, version)
 
+    def test_existing_localized_media_folders_are_reused(self):
+        with tempfile.TemporaryDirectory() as tmp, contextlib.redirect_stdout(io.StringIO()):
+            root = Path(tmp)
+            (root / 'Immagini').mkdir()
+            (root / 'Video').mkdir()
+            existing = root / 'Immagini' / 'keep.txt'
+            existing.write_text('existing download', encoding='utf-8')
+            self.assertEqual(engine.run({'urls': [self.base], 'destination': tmp}), 0)
+            self.assertEqual(engine.gallery_download(
+                self.base + '/image.png', root, separate_media=True)[:2], (1, 0))
+            self.assertTrue(any((root / 'Immagini').glob('*.png')))
+            self.assertEqual(existing.read_text(encoding='utf-8'), 'existing download')
+            self.assertFalse((root / 'Images').exists())
+            self.assertFalse((root / 'Videos').exists())
+
     def test_gallery_markers(self):
         with tempfile.TemporaryDirectory() as tmp, contextlib.redirect_stdout(io.StringIO()) as output:
             # gallery-dl's generic direct-image extractor, real subprocess.
@@ -270,7 +285,7 @@ class Tests(unittest.TestCase):
                 self.base + '/image.png', root, images=True, videos=False,
                 separate_media=True)
             self.assertEqual((count, code), (1, 0))
-            self.assertEqual(len(list((root / 'Immagini').glob('*.png'))), 1)
+            self.assertEqual(len(list((root / 'Images').glob('*.png'))), 1)
 
         with tempfile.TemporaryDirectory() as tmp, contextlib.redirect_stdout(io.StringIO()):
             count, code, _ = engine.gallery_download(
@@ -285,7 +300,7 @@ class Tests(unittest.TestCase):
                 self.base + '/video.mp4', root, images=False, videos=True,
                 separate_media=True)
             self.assertEqual((count, code), (1, 0))
-            self.assertEqual(len(list((root / 'Video').glob('*.mp4'))), 1)
+            self.assertEqual(len(list((root / 'Videos').glob('*.mp4'))), 1)
 
     def test_yt_dlp_video_download_and_duplicate(self):
         with tempfile.TemporaryDirectory() as tmp, contextlib.redirect_stdout(io.StringIO()) as output:
@@ -297,7 +312,7 @@ class Tests(unittest.TestCase):
 
     def test_at_least_one_media_type_is_required(self):
         with tempfile.TemporaryDirectory() as tmp, contextlib.redirect_stdout(io.StringIO()):
-            with self.assertRaisesRegex(ValueError, 'almeno Immagini oppure Video'):
+            with self.assertRaisesRegex(ValueError, 'Select Images, Videos, or both'):
                 engine.run({'urls': [self.base], 'destination': tmp,
                             'images': False, 'videos': False})
 

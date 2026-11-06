@@ -9,14 +9,14 @@ pythonw = projectFolder & "\.venv\Scripts\pythonw.exe"
 appFile = projectFolder & "\app.py"
 
 If Not fso.FileExists(pythonw) Then
-    MsgBox "Gallery-DL non è ancora installato." & vbCrLf & _
-           "Esegui prima INSTALL.bat: installerà o aggiornerà automaticamente tutti i componenti.", _
-           16, "Gallery-DL"
+    MsgBox "gallery-dl Desktop is not installed yet." & vbCrLf & _
+           "Run INSTALL.bat first to install or update the required components.", _
+           16, "gallery-dl Desktop"
     WScript.Quit 1
 End If
 
 If Not fso.FileExists(appFile) Then
-    MsgBox "Il file app.py non è stato trovato.", 16, "Gallery-DL"
+    MsgBox "The app.py file was not found.", 16, "gallery-dl Desktop"
     WScript.Quit 1
 End If
 

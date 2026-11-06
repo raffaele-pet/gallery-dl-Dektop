@@ -23,7 +23,7 @@ BG, PANEL, TEXT, MUTED, GREEN = '#110B38', '#1E1E1E', '#FFFFFF', '#99A2DB', '#B2
 class App(tk.Tk):
     def __init__(self):
         super().__init__()
-        self.title('Gallery-DL')
+        self.title('gallery-dl Desktop')
         try:
             self.app_icon = tk.PhotoImage(file=str(ICON_PNG))
             self.iconphoto(True, self.app_icon)
@@ -57,7 +57,7 @@ class App(tk.Tk):
         self.collection = tk.StringVar()
         self._automatic_collection = ''
         self._setting_collection = False
-        self.status = tk.StringVar(value='Incolla un link e premi Scarica.')
+        self.status = tk.StringVar(value='Paste a URL and click Download.')
         style = ttk.Style(self)
         style.theme_use('clam')
         style.configure('TProgressbar', background=GREEN, troughcolor=PANEL, borderwidth=0)
@@ -67,56 +67,56 @@ class App(tk.Tk):
             self.logo = tk.PhotoImage(file=str(APP_DIR / 'assets/gallery-dl-logo.png')).subsample(4)
             tk.Label(body, image=self.logo, bg=BG).pack(anchor='w', pady=(0, 16))
         except tk.TclError:
-            self.label(body, 'Gallery-DL', 22).pack(anchor='w')
-        self.label(body, 'Incolla il link', 12).pack(anchor='w', pady=(0, 6))
+            self.label(body, 'gallery-dl Desktop', 22).pack(anchor='w')
+        self.label(body, 'Paste a URL', 12).pack(anchor='w', pady=(0, 6))
         self.urls = tk.Text(body, height=3, wrap='word', bg=PANEL, fg=TEXT,
                             insertbackground=GREEN, relief='flat', padx=12, pady=10,
                             font=('Segoe UI', 11), undo=True)
         self.urls.pack(fill='x')
         self.urls.bind('<<Modified>>', self.url_changed)
         self.urls.edit_modified(False)
-        self.label(body, 'Una pagina, un’immagine, un post o una galleria. Anche più link.', 10, MUTED).pack(anchor='w', pady=(6, 18))
-        self.label(body, 'Salva in', 11).pack(anchor='w', pady=(0, 6))
+        self.label(body, 'A page, image, post, or gallery. Multiple URLs are supported.', 10, MUTED).pack(anchor='w', pady=(6, 18))
+        self.label(body, 'Save to', 11).pack(anchor='w', pady=(0, 6))
         folder = tk.Frame(body, bg=BG)
         folder.pack(fill='x')
         self.folder_entry = tk.Entry(folder, textvariable=self.destination, bg=PANEL, fg=TEXT,
                                      insertbackground=GREEN, relief='flat', font=('Segoe UI', 10))
         self.folder_entry.pack(side='left', fill='x', expand=True, ipady=9)
-        self.browse = self.button(folder, 'Sfoglia…', self.choose_folder)
+        self.browse = self.button(folder, 'Browse…', self.choose_folder)
         self.browse.pack(side='left', padx=(8, 0))
 
         media_options = tk.Frame(body, bg=BG)
         media_options.pack(fill='x', pady=(12, 0))
-        self.label(media_options, 'Scarica', 10, MUTED).pack(side='left', padx=(0, 8))
-        self.images_check = self.checkbutton(media_options, 'Immagini', self.download_images)
+        self.label(media_options, 'Download', 10, MUTED).pack(side='left', padx=(0, 8))
+        self.images_check = self.checkbutton(media_options, 'Images', self.download_images)
         self.images_check.pack(side='left')
-        self.videos_check = self.checkbutton(media_options, 'Video', self.download_videos)
+        self.videos_check = self.checkbutton(media_options, 'Videos', self.download_videos)
         self.videos_check.pack(side='left', padx=(8, 0))
 
         storage_options = tk.Frame(body, bg=BG)
         storage_options.pack(fill='x', pady=(4, 0))
-        self.label(storage_options, 'Organizza', 10, MUTED).pack(side='left', padx=(0, 8))
+        self.label(storage_options, 'Organize', 10, MUTED).pack(side='left', padx=(0, 8))
         self.separate_radio = self.radiobutton(
-            storage_options, 'in Immagini / Video', self.separate_media, True)
+            storage_options, 'Separate folders', self.separate_media, True)
         self.separate_radio.pack(side='left')
         self.together_radio = self.radiobutton(
-            storage_options, 'tutto insieme', self.separate_media, False)
+            storage_options, 'All in one folder', self.separate_media, False)
         self.together_radio.pack(side='left', padx=(8, 0))
 
-        self.label(body, 'Cartella', 11).pack(anchor='w', pady=(14, 6))
+        self.label(body, 'Folder', 11).pack(anchor='w', pady=(14, 6))
         self.collection_entry = tk.Entry(body, textvariable=self.collection, bg=PANEL, fg=TEXT,
                                          insertbackground=GREEN, relief='flat', font=('Segoe UI', 10))
         self.collection_entry.pack(fill='x', ipady=9)
         self.collection.trace_add('write', self.collection_changed)
         actions = tk.Frame(body, bg=BG)
         actions.pack(fill='x', pady=(20, 16))
-        self.download = self.button(actions, 'Scarica', self.start, primary=True)
+        self.download = self.button(actions, 'Download', self.start, primary=True)
         self.download.pack(side='left')
-        self.stop = self.button(actions, 'Annulla', self.cancel)
+        self.stop = self.button(actions, 'Cancel', self.cancel)
         self.stop.pack(side='left', padx=8)
         self.stop.configure(state='disabled')
-        self.button(actions, 'Apri cartella', self.open_folder).pack(side='right')
-        self.update_button = self.button(actions, 'Aggiorna', self.update_engine)
+        self.button(actions, 'Open folder', self.open_folder).pack(side='right')
+        self.update_button = self.button(actions, 'Update', self.update_engine)
         self.update_button.pack(side='right', padx=8)
         tk.Label(body, textvariable=self.status, bg=BG, fg=GREEN, font=('Segoe UI', 11),
                  anchor='w', wraplength=730).pack(fill='x', pady=(0, 8))
@@ -183,11 +183,11 @@ class App(tk.Tk):
     def target_folder(self):
         name = self.collection.get().strip()
         if not name:
-            raise ValueError('Inserisci il nome della cartella.')
+            raise ValueError('Enter a folder name.')
         if name in ('.', '..') or any(char in name for char in '<>:"/\\|?*') or name.rstrip(' .') != name:
-            raise ValueError('“Cartella” deve essere un solo nome, senza /, \\ o caratteri speciali.')
+            raise ValueError('Use a single folder name without /, \\ or special characters.')
         if name.split('.')[0].upper() in {'CON', 'PRN', 'AUX', 'NUL', *(f'COM{i}' for i in range(1, 10)), *(f'LPT{i}' for i in range(1, 10))}:
-            raise ValueError('Questo nome di cartella è riservato da Windows.')
+            raise ValueError('This folder name is reserved by Windows.')
         return self.resolve_destination() / name
 
     def open_folder(self):
@@ -196,7 +196,7 @@ class App(tk.Tk):
             folder.mkdir(parents=True, exist_ok=True)
             os.startfile(folder)
         except (ValueError, OSError) as exc:
-            messagebox.showerror('Cartella non disponibile', str(exc))
+            messagebox.showerror('Folder unavailable', str(exc))
 
     def append(self, text):
         self.log.configure(state='normal')
@@ -219,13 +219,13 @@ class App(tk.Tk):
         try:
             urls = normalize_urls(self.urls.get('1.0', 'end'))
             if not self.destination.get().strip():
-                raise ValueError('Scegli una cartella di destinazione.')
+                raise ValueError('Choose a destination folder.')
             if not self.download_images.get() and not self.download_videos.get():
-                raise ValueError('Seleziona almeno Immagini oppure Video.')
+                raise ValueError('Select Images, Videos, or both.')
             destination = self.target_folder()
             destination.mkdir(parents=True, exist_ok=True)
         except (ValueError, OSError) as exc:
-            messagebox.showerror('Controlla il link o la cartella', str(exc))
+            messagebox.showerror('Check the URL or folder', str(exc))
             return
         try:
             STATE_FILE.write_text(json.dumps({
@@ -241,13 +241,13 @@ class App(tk.Tk):
         self.log.configure(state='normal')
         self.log.delete('1.0', 'end')
         self.log.configure(state='disabled')
-        self.append('Destinazione: ' + str(destination))
-        selected = 'Immagini e video' if self.download_images.get() and self.download_videos.get() \
-            else 'Immagini' if self.download_images.get() else 'Video'
-        organization = 'sottocartelle separate' if self.separate_media.get() else 'tutto insieme'
-        self.append(f'Contenuti: {selected} · {organization}')
+        self.append('Destination: ' + str(destination))
+        selected = 'Images and videos' if self.download_images.get() and self.download_videos.get() \
+            else 'Images' if self.download_images.get() else 'Videos'
+        organization = 'separate folders' if self.separate_media.get() else 'All in one folder'
+        self.append(f'Content: {selected} · {organization}')
         self.set_busy(True)
-        self.status.set('Cerco i contenuti…')
+        self.status.set('Looking for media…')
         self.launch([str(APP_DIR / 'engine.py')], {
             'urls': urls,
             'destination': str(destination),
@@ -269,7 +269,7 @@ class App(tk.Tk):
             self.process.stdin.close()
         except OSError as exc:
             self.append(str(exc))
-            self.status.set('Avvio non riuscito. Esegui INSTALL.bat.')
+            self.status.set('Could not start. Run INSTALL.bat.')
             self.set_busy(False)
             return
         proc = self.process
@@ -296,8 +296,8 @@ class App(tk.Tk):
             elif kind == 'file':
                 self.existing += bool(event.get('existing'))
                 self.saved += not event.get('existing', False)
-                self.status.set(f'{self.saved} file scaricati · {self.existing} già presenti')
-                self.append(('Già presente: ' if event.get('existing') else 'Salvato: ') + event['name'])
+                self.status.set(f'{self.saved} files downloaded · {self.existing} already present')
+                self.append(('Already present: ' if event.get('existing') else 'Saved: ') + event['name'])
             elif kind == 'done':
                 self.status.set(event['text'])
                 self.append(event['text'])
@@ -308,22 +308,22 @@ class App(tk.Tk):
                 self.process = None
                 self.set_busy(False)
                 if self.cancelled:
-                    self.status.set('Annullato. I file già scaricati restano nella cartella.')
+                    self.status.set('Canceled. Completed files remain in the destination folder.')
                 elif event.get('update'):
-                    text = 'Aggiornamento verificato.'
+                    text = 'Update verified.'
                     if self.update_restart_required:
-                        text += ' Riapri l’app per caricare la nuova interfaccia.'
+                        text += ' Reopen the app to load the updated interface.'
                     self.status.set(text if event['code'] == 0 and self.update_verified
-                                    else 'Aggiornamento non riuscito o non verificato: vedi dettagli.')
+                                    else 'Update failed or could not be verified. See the details.')
                 elif event['code'] != 0:
-                    self.status.set(f'Download incompleto: {self.saved} file salvati. Vedi dettagli.')
+                    self.status.set(f'Download incomplete: {self.saved} files saved. See the details.')
         self.after(100, self.poll)
 
     def cancel(self):
         if self.process and self.process.poll() is None:
             self.cancelled = True
             self.stop.configure(state='disabled')
-            self.status.set('Annullamento…')
+            self.status.set('Canceling…')
             subprocess.Popen(['taskkill', '/PID', str(self.process.pid), '/T', '/F'],
                 stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
                 creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0))
@@ -334,12 +334,12 @@ class App(tk.Tk):
             self.update_restart_required = False
             self.update_verified = False
             self.set_busy(True)
-            self.status.set('Controllo aggiornamenti dell’app e dei motori…')
-            self.append('Controllo applicazione, release ufficiali e dipendenze…')
+            self.status.set('Checking app and engine updates…')
+            self.append('Checking the application, official releases, and dependencies…')
             self.launch([str(APP_DIR / 'maintenance.py')])
 
     def close(self):
-        if self.busy and not messagebox.askyesno('Chiudere?', 'Annullare l’operazione e chiudere?'):
+        if self.busy and not messagebox.askyesno('Close?', 'Cancel the current operation and close?'):
             return
         self.cancel()
         self.destroy()

@@ -26,9 +26,9 @@ def run(payload):
     if payload.get('separate_media', True):
         mapping = {}
         if images:
-            mapping['Immagini'] = IMAGE_EXTENSIONS
+            mapping[payload.get('image_directory', 'Images')] = IMAGE_EXTENSIONS
         if videos:
-            mapping['Video'] = VIDEO_EXTENSIONS
+            mapping[payload.get('video_directory', 'Videos')] = VIDEO_EXTENSIONS
         config.set(('extractor',), 'postprocessors', [{'name': 'classify', 'mapping': mapping}])
     sys.argv = ['gallery-dl', '--config-ignore', '--no-input', '--no-colors',
                 '--directory', payload['destination'], '--retries', '2', '--http-timeout', '25',

@@ -9,7 +9,8 @@ import zipfile
 from network import http_session
 
 APP_DIR = Path(__file__).resolve().parent
-REPOSITORY = 'raffaele-pet/gallery-dl-windows-gui'
+REPOSITORY = 'raffaele-pet/gallery-dl-dektop'
+LEGACY_REPOSITORY = 'raffaele-pet/gallery-dl-windows-gui'
 ALLOWED_FILES = {
     'app.py', 'engine.py', 'gallery_worker.py', 'maintenance.py', 'network.py',
     'app_update.py', 'requirements.txt', 'INSTALL.bat', 'RUN.vbs', 'RUN_DEBUG.cmd',
@@ -24,7 +25,7 @@ def git(*arguments, check=True):
         timeout=90, creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0),
     )
     if check and result.returncode:
-        raise RuntimeError(result.stderr.strip() or result.stdout.strip() or 'Operazione Git non riuscita.')
+        raise RuntimeError(result.stderr.strip() or result.stdout.strip() or 'Git operation failed.')
     return result
 
 
@@ -32,19 +33,23 @@ def update_application():
     """Fast-forward clean Git installs; ZIP installs keep backups of replaced files."""
     if (APP_DIR / '.git').exists():
         remote = git('remote', 'get-url', 'origin').stdout.strip().removesuffix('.git')
-        if remote not in ('https://github.com/' + REPOSITORY,
-                          'git@github.com:' + REPOSITORY):
-            raise RuntimeError('Il remote Git non corrisponde alla repository dell’app.')
+        allowed_remotes = {prefix + repository for prefix in
+                           ('https://github.com/', 'git@github.com:') for repository in
+                           (REPOSITORY, LEGACY_REPOSITORY)}
+        if remote not in allowed_remotes:
+            raise RuntimeError('The Git remote does not match the application repository.')
         if git('status', '--porcelain', '--untracked-files=no').stdout.strip():
-            raise RuntimeError('Ci sono modifiche locali al codice. Salvale con Git prima di aggiornare.')
+            raise RuntimeError('Local code changes were found. Save them with Git before updating.')
         if git('branch', '--show-current').stdout.strip() != 'main':
-            raise RuntimeError('L’aggiornamento automatico richiede il ramo main.')
+            raise RuntimeError('Automatic updates require the main branch.')
+        if remote.endswith(LEGACY_REPOSITORY):
+            git('remote', 'set-url', 'origin', 'https://github.com/' + REPOSITORY + '.git')
         before = git('rev-parse', 'HEAD').stdout.strip()
         git('fetch', '--quiet', 'origin', 'main')
         git('merge', '--ff-only', 'FETCH_HEAD')
         after = git('rev-parse', 'HEAD').stdout.strip()
-        print('Applicazione: ' + ('aggiornata a ' + after[:10] if before != after
-                                 else 'già aggiornata (' + after[:10] + ')'), flush=True)
+        print('Application: ' + ('updated to ' + after[:10] if before != after
+                                 else 'already up to date (' + after[:10] + ')'), flush=True)
         return before != after
 
     with http_session() as session:
@@ -53,7 +58,7 @@ def update_application():
         response.raise_for_status()
         commit = response.json()['sha']
         if len(commit) != 40 or any(c not in '0123456789abcdef' for c in commit):
-            raise ValueError('Risposta GitHub non valida.')
+            raise ValueError('Invalid GitHub response.')
         response = session.get('https://codeload.github.com/' + REPOSITORY +
                                '/zip/' + commit, timeout=(15, 60))
         response.raise_for_status()
@@ -79,11 +84,11 @@ def install_archive(data, commit):
                 files[relative] = content
     required = {'app.py', 'engine.py', 'maintenance.py', 'requirements.txt'}
     if not required <= files.keys():
-        raise ValueError('L’archivio dell’applicazione è incompleto.')
+        raise ValueError('The application archive is incomplete.')
     changes = {name: content for name, content in files.items()
                if not (APP_DIR / name).is_file() or (APP_DIR / name).read_bytes() != content}
     if not changes:
-        print('Applicazione già aggiornata.', flush=True)
+        print('The application is already up to date.', flush=True)
         return False
     backup = APP_DIR / '.update-backups' / (datetime.now().strftime('%Y%m%d-%H%M%S-%f'))
     # Stage and validate the complete archive before replacing any application file.
@@ -114,5 +119,5 @@ def install_archive(data, commit):
                 target.unlink(missing_ok=True)
         raise
     (backup / 'version.json').write_text(json.dumps({'commit': commit}), encoding='utf-8')
-    print('Applicazione aggiornata a ' + commit[:10] + '; backup: ' + str(backup), flush=True)
+    print('Application updated to ' + commit[:10] + '; backup: ' + str(backup), flush=True)
     return True
