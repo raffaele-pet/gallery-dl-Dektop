@@ -9,7 +9,7 @@ import zipfile
 from network import http_session
 
 APP_DIR = Path(__file__).resolve().parent
-REPOSITORY = 'raffaele-pet/gallery-dl-dektop'
+REPOSITORY = 'raffaele-pet/gallery-dl-Dektop'
 LEGACY_REPOSITORY = 'raffaele-pet/gallery-dl-windows-gui'
 ALLOWED_FILES = {
     'app.py', 'engine.py', 'gallery_worker.py', 'maintenance.py', 'network.py',
@@ -36,13 +36,13 @@ def update_application():
         allowed_remotes = {prefix + repository for prefix in
                            ('https://github.com/', 'git@github.com:') for repository in
                            (REPOSITORY, LEGACY_REPOSITORY)}
-        if remote not in allowed_remotes:
+        if remote.casefold() not in {url.casefold() for url in allowed_remotes}:
             raise RuntimeError('The Git remote does not match the application repository.')
         if git('status', '--porcelain', '--untracked-files=no').stdout.strip():
             raise RuntimeError('Local code changes were found. Save them with Git before updating.')
         if git('branch', '--show-current').stdout.strip() != 'main':
             raise RuntimeError('Automatic updates require the main branch.')
-        if remote.endswith(LEGACY_REPOSITORY):
+        if not remote.endswith(REPOSITORY):
             git('remote', 'set-url', 'origin', 'https://github.com/' + REPOSITORY + '.git')
         before = git('rev-parse', 'HEAD').stdout.strip()
         git('fetch', '--quiet', 'origin', 'main')
